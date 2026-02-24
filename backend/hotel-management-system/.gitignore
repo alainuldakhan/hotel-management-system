@@ -1,0 +1,27 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+
+# NuGet
+*.nupkg
+packages/
+
+# Environment
+appsettings.Development.json
+.env
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+logs/
+*.log
+
+# Node (for future frontend)
+node_modules/
+dist/
+.next/

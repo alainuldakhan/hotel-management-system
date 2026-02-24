@@ -1,0 +1,14 @@
+using HotelManagement.Application.DTOs;
+
+namespace HotelManagement.Application.Common.Interfaces.Queries;
+
+/// <summary>
+/// Dapper Query-сервис для бронирований — только чтение.
+/// </summary>
+public interface IBookingQueryService
+{
+    Task<BookingDetailDto?> GetByIdAsync(Guid bookingId, CancellationToken ct = default);
+    Task<BookingDetailDto?> GetByQrTokenAsync(string qrToken, CancellationToken ct = default);
+    Task<PagedResultDto<BookingListItemDto>> GetPagedAsync(BookingFilterDto filter, CancellationToken ct = default);
+    Task<IEnumerable<BookingListItemDto>> GetGuestBookingsAsync(Guid guestId, CancellationToken ct = default);
+}

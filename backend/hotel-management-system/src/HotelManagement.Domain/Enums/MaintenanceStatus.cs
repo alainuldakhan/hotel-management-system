@@ -1,0 +1,9 @@
+namespace HotelManagement.Domain.Enums;
+
+public enum MaintenanceStatus
+{
+    New = 1,
+    InProgress = 2,
+    Completed = 3,
+    Cancelled = 4
+}
