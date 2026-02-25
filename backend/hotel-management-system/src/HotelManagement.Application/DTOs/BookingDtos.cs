@@ -71,3 +71,23 @@ public record PagedResultDto<T>(
     public bool HasNextPage => Page < TotalPages;
     public bool HasPreviousPage => Page > 1;
 }
+
+// ── Шахматка (Room Booking Grid) ──────────────────────────────────────────────
+
+public record BookingGridItemDto(
+    Guid Id,
+    string GuestFullName,
+    DateTime CheckInDate,
+    DateTime CheckOutDate,
+    int NightsCount,
+    string Status
+);
+
+public record RoomGridRowDto(
+    Guid RoomId,
+    string RoomNumber,
+    int Floor,
+    string RoomTypeName,
+    string RoomStatus,
+    List<BookingGridItemDto> Bookings
+);

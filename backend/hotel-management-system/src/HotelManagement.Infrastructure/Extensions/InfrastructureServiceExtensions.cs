@@ -39,6 +39,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
         services.AddScoped<IMaintenanceRepository, MaintenanceRepository>();
         services.AddScoped<IHousekeepingRepository, HousekeepingRepository>();
+        services.AddScoped<IReviewRepository, ReviewRepository>();
 
         // ── Dapper (Queries / Read) ─────────────────────────────────────────
         services.AddSingleton<IDbConnectionFactory>(
@@ -55,12 +56,20 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IMaintenanceQueryService, MaintenanceQueryService>();
         services.AddScoped<IUserQueryService, UserQueryService>();
         services.AddScoped<IHousekeepingQueryService, HousekeepingQueryService>();
+        services.AddScoped<IReviewQueryService, ReviewQueryService>();
 
         // ── Services ────────────────────────────────────────────────────────
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
         services.AddScoped<IEmailService, EmailService>();
+        services.AddSingleton<IPdfReportService, PdfReportService>();
+
+        // QuestPDF Community License (бесплатная для некоммерческих проектов)
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
+        // Фоновая служба напоминаний о заезде
+        services.AddHostedService<BookingReminderService>();
 
         return services;
     }

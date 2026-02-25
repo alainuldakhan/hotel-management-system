@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<MaintenanceRequest> MaintenanceRequests => Set<MaintenanceRequest>();
     public DbSet<PricingRule> PricingRules => Set<PricingRule>();
     public DbSet<HousekeepingTask> HousekeepingTasks => Set<HousekeepingTask>();
+    public DbSet<Review> Reviews => Set<Review>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

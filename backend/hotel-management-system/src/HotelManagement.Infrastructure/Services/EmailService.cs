@@ -46,6 +46,13 @@ public class EmailService : IEmailService
         await SendAsync(data.GuestEmail, data.GuestFullName, subject, body, ct);
     }
 
+    public async Task SendBookingReminderAsync(BookingEmailData data, CancellationToken ct = default)
+    {
+        var subject = $"Напоминание: завтра заезд в номер {data.RoomNumber}";
+        var body = BuildReminderHtml(data);
+        await SendAsync(data.GuestEmail, data.GuestFullName, subject, body, ct);
+    }
+
     private async Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct)
     {
         if (!_settings.IsEnabled)
@@ -208,6 +215,36 @@ public class EmailService : IEmailService
             <tr><td>Дата выезда</td><td>{{d.CheckOutDate:dd.MM.yyyy}}</td></tr>
           </table>
           <p>Если это ошибка, свяжитесь с нами.</p>
+        </div>
+        </body></html>
+        """;
+
+    private static string BuildReminderHtml(BookingEmailData d) => $$"""
+        <!DOCTYPE html>
+        <html lang="ru">
+        <head><meta charset="UTF-8"><style>
+          body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+          .card { max-width: 560px; margin: auto; background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+          .hotel { font-size: 22px; font-weight: bold; color: #1677ff; text-align: center; }
+          .badge { display: inline-block; background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; border-radius: 6px; padding: 6px 16px; font-size: 14px; font-weight: 600; margin: 12px 0; }
+          h2 { color: #333; margin: 24px 0 16px; }
+          table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+          td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+          td:first-child { color: #888; width: 45%; }
+          td:last-child { font-weight: 500; color: #333; }
+        </style></head>
+        <body>
+        <div class="card">
+          <div class="hotel">Hotel Management System</div>
+          <h2>Напоминание о заезде</h2>
+          <p>Уважаемый(ая) {{d.GuestFullName}},<br>напоминаем, что <strong>завтра</strong> вас ждёт заезд!</p>
+          <div class="badge">Заезд: {{d.CheckInDate:dd.MM.yyyy}}</div>
+          <table>
+            <tr><td>Номер комнаты</td><td>{{d.RoomNumber}} ({{d.RoomTypeName}})</td></tr>
+            <tr><td>Дата выезда</td><td>{{d.CheckOutDate:dd.MM.yyyy}}</td></tr>
+            <tr><td>Количество ночей</td><td>{{d.NightsCount}}</td></tr>
+          </table>
+          <p>Будем рады видеть вас. Если у вас изменились планы, пожалуйста, сообщите нам заранее.</p>
         </div>
         </body></html>
         """;

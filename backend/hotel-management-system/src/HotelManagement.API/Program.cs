@@ -68,8 +68,7 @@ builder.Services.AddCors(options =>
 // ─────────────────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
-// Auto-apply migrations on startup (dev only)
-if (app.Environment.IsDevelopment())
+// Auto-apply migrations on startup
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -79,11 +78,8 @@ if (app.Environment.IsDevelopment())
 app.UseSerilogRequestLogging();
 app.UseMiddleware<ExceptionMiddleware>();   // глобальная обработка ошибок
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseCors("FrontendPolicy");
 app.UseHttpsRedirection();

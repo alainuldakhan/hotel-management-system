@@ -46,4 +46,28 @@ public class UserQueryService : DapperQueryBase, IUserQueryService
 
         return await QueryFirstOrDefaultAsync<UserListItemDto>(sql, new { Id = id }, ct);
     }
+
+    public async Task<UserProfileDto?> GetProfileAsync(Guid userId, CancellationToken ct = default)
+    {
+        var sql = """
+            SELECT
+                u.id                                                    AS Id,
+                u.first_name                                            AS FirstName,
+                u.last_name                                             AS LastName,
+                u.email                                                 AS Email,
+                u.phone_number                                          AS PhoneNumber,
+                u.role::text                                            AS Role,
+                u.created_at                                            AS CreatedAt,
+                COUNT(b.id)                                             AS TotalBookings,
+                COALESCE(SUM(b.total_amount), 0)                        AS TotalSpent,
+                MAX(b.created_at)                                       AS LastBookingDate
+            FROM users u
+            LEFT JOIN bookings b ON b.guest_id = u.id AND b.status != 'Cancelled'
+            WHERE u.id = @UserId
+            GROUP BY u.id, u.first_name, u.last_name, u.email,
+                     u.phone_number, u.role, u.created_at
+            """;
+
+        return await QueryFirstOrDefaultAsync<UserProfileDto>(sql, new { UserId = userId }, ct);
+    }
 }

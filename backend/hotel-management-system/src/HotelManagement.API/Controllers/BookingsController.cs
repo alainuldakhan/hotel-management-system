@@ -22,6 +22,15 @@ public class BookingsController : ControllerBase
     public async Task<IActionResult> GetAll([FromQuery] BookingFilterDto filter, CancellationToken ct)
         => Ok(await _mediator.Send(new GetBookingsQuery(filter), ct));
 
+    /// <summary>Get booking grid — шахматка [Staff]</summary>
+    [HttpGet("grid")]
+    [Authorize(Roles = "Receptionist,Manager,SuperAdmin")]
+    public async Task<IActionResult> GetGrid(
+        [FromQuery] DateTime startDate,
+        [FromQuery] DateTime endDate,
+        CancellationToken ct)
+        => Ok(await _mediator.Send(new GetBookingGridQuery(startDate, endDate), ct));
+
     /// <summary>Get my bookings [Guest]</summary>
     [HttpGet("my")]
     [Authorize(Roles = "Guest")]

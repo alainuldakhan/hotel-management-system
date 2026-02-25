@@ -6,6 +6,7 @@ public interface IEmailService
     Task SendCheckInNotificationAsync(BookingEmailData data, CancellationToken ct = default);
     Task SendCheckOutReceiptAsync(BookingEmailData data, CancellationToken ct = default);
     Task SendBookingCancellationAsync(BookingEmailData data, CancellationToken ct = default);
+    Task SendBookingReminderAsync(BookingEmailData data, CancellationToken ct = default);
 }
 
 public record BookingEmailData(

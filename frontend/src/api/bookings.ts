@@ -5,6 +5,7 @@ import type {
   BookingListItemDto,
   CreateBookingRequest,
   PagedResult,
+  RoomGridRowDto,
 } from '../types/api';
 
 export const bookingsApi = {
@@ -34,4 +35,9 @@ export const bookingsApi = {
 
   removeService: (id: string, serviceId: string) =>
     apiClient.delete(`/bookings/${id}/services/${serviceId}`),
+
+  getGrid: (startDate: string, endDate: string) =>
+    apiClient
+      .get<RoomGridRowDto[]>('/bookings/grid', { params: { startDate, endDate } })
+      .then((r) => r.data),
 };

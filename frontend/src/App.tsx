@@ -18,6 +18,9 @@ import { InvoicesPage } from './pages/invoices/InvoicesPage';
 import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import { UsersPage } from './pages/users/UsersPage';
 import { HousekeepingPage } from './pages/housekeeping/HousekeepingPage';
+import { BookingGridPage } from './pages/bookings/BookingGridPage';
+import { ProfilePage } from './pages/profile/ProfilePage';
+import { ReviewsPage } from './pages/reviews/ReviewsPage';
 import { UserRole } from './types/enums';
 
 const queryClient = new QueryClient({
@@ -67,6 +70,16 @@ export default function App() {
               <Route path="bookings" element={<BookingsPage />} />
               <Route path="bookings/new" element={<CreateBookingPage />} />
               <Route path="bookings/:id" element={<BookingDetailPage />} />
+              <Route
+                path="bookings/grid"
+                element={
+                  <ProtectedRoute
+                    roles={[UserRole.Receptionist, UserRole.Manager, UserRole.SuperAdmin]}
+                  >
+                    <BookingGridPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="maintenance" element={<MaintenancePage />} />
               <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
               <Route
@@ -115,6 +128,15 @@ export default function App() {
                 element={
                   <ProtectedRoute roles={[UserRole.Manager, UserRole.SuperAdmin]}>
                     <UsersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route
+                path="reviews"
+                element={
+                  <ProtectedRoute roles={[UserRole.Manager, UserRole.SuperAdmin]}>
+                    <ReviewsPage />
                   </ProtectedRoute>
                 }
               />

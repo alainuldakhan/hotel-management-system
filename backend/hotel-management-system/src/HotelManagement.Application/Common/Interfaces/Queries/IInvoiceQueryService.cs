@@ -6,4 +6,6 @@ public interface IInvoiceQueryService
 {
     Task<IEnumerable<InvoiceDto>> GetByBookingIdAsync(Guid bookingId, CancellationToken ct = default);
     Task<InvoiceDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<InvoiceDetailDto?> GetDetailByIdAsync(Guid id, CancellationToken ct = default);
+    Task<IEnumerable<DailyOccupancyItemDto>> GetDailyOccupancyAsync(DateTime date, CancellationToken ct = default);
 }

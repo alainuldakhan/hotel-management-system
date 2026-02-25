@@ -11,4 +11,6 @@ public interface IBookingQueryService
     Task<BookingDetailDto?> GetByQrTokenAsync(string qrToken, CancellationToken ct = default);
     Task<PagedResultDto<BookingListItemDto>> GetPagedAsync(BookingFilterDto filter, CancellationToken ct = default);
     Task<IEnumerable<BookingListItemDto>> GetGuestBookingsAsync(Guid guestId, CancellationToken ct = default);
+    Task<List<RoomGridRowDto>> GetGridAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default);
+    Task<IEnumerable<BookingListItemDto>> GetTomorrowCheckInsAsync(CancellationToken ct = default);
 }

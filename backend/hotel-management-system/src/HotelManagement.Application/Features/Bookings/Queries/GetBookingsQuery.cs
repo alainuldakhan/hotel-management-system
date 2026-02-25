@@ -58,3 +58,18 @@ public class GetBookingByQrQueryHandler : IRequestHandler<GetBookingByQrQuery, B
         return result ?? throw new NotFoundException("Booking", request.QrToken);
     }
 }
+
+// ── Шахматка ─────────────────────────────────────────────────────────────────
+
+public record GetBookingGridQuery(DateTime StartDate, DateTime EndDate)
+    : IRequest<List<RoomGridRowDto>>;
+
+public class GetBookingGridQueryHandler : IRequestHandler<GetBookingGridQuery, List<RoomGridRowDto>>
+{
+    private readonly IBookingQueryService _queryService;
+
+    public GetBookingGridQueryHandler(IBookingQueryService queryService) => _queryService = queryService;
+
+    public Task<List<RoomGridRowDto>> Handle(GetBookingGridQuery request, CancellationToken cancellationToken)
+        => _queryService.GetGridAsync(request.StartDate, request.EndDate, cancellationToken);
+}

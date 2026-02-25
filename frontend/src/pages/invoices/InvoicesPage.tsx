@@ -1,4 +1,4 @@
-import { DollarOutlined } from '@ant-design/icons';
+import { DollarOutlined, FilePdfOutlined } from '@ant-design/icons';
 import {
   Button,
   Form,
@@ -16,6 +16,7 @@ import dayjs from 'dayjs';
 import { useState } from 'react';
 import { invoicesApi } from '../../api/invoices';
 import { bookingsApi } from '../../api/bookings';
+import { reportsApi } from '../../api/reports';
 import type { InvoiceDto } from '../../types/api';
 import { PaymentStatus } from '../../types/enums';
 
@@ -124,21 +125,35 @@ export function InvoicesPage() {
     {
       title: '',
       key: 'actions',
-      width: 110,
-      render: (_, record) =>
-        record.status === PaymentStatus.Pending ? (
+      width: 190,
+      render: (_, record) => (
+        <div style={{ display: 'flex', gap: 6 }}>
+          {record.status === PaymentStatus.Pending && (
+            <Button
+              size="small"
+              icon={<DollarOutlined />}
+              type="primary"
+              onClick={() => {
+                setMarkPaidModal({ id: record.id, invoiceNumber: record.invoiceNumber });
+                markForm.resetFields();
+              }}
+            >
+              Оплачен
+            </Button>
+          )}
           <Button
             size="small"
-            icon={<DollarOutlined />}
-            type="primary"
-            onClick={() => {
-              setMarkPaidModal({ id: record.id, invoiceNumber: record.invoiceNumber });
-              markForm.resetFields();
-            }}
+            icon={<FilePdfOutlined />}
+            onClick={() =>
+              reportsApi
+                .downloadInvoicePdf(record.id, record.invoiceNumber)
+                .catch(() => msg.error('Ошибка скачивания PDF'))
+            }
           >
-            Оплачен
+            PDF
           </Button>
-        ) : null,
+        </div>
+      ),
     },
   ];
 

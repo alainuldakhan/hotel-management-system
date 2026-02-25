@@ -1,4 +1,5 @@
-import { Card, Col, DatePicker, Row, Select, Spin, Table, Typography } from 'antd';
+import { Button, Card, Col, DatePicker, Row, Select, Space, Spin, Table, Typography, message } from 'antd';
+import { FilePdfOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useState } from 'react';
@@ -16,6 +17,7 @@ import {
   YAxis,
 } from 'recharts';
 import { analyticsApi } from '../../api/analytics';
+import { reportsApi } from '../../api/reports';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -23,11 +25,32 @@ const { RangePicker } = DatePicker;
 const COLORS = ['#1677ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
 
 export function AnalyticsPage() {
+  const [msg, contextHolder] = message.useMessage();
   const [revenueRange, setRevenueRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().subtract(6, 'month'),
     dayjs(),
   ]);
   const [groupBy, setGroupBy] = useState<'month' | 'week' | 'day'>('month');
+  const [pdfLoading, setPdfLoading] = useState<string | null>(null);
+
+  const handleDownload = async (type: 'revenue' | 'daily') => {
+    setPdfLoading(type);
+    try {
+      if (type === 'revenue') {
+        await reportsApi.downloadRevenueReport(
+          revenueRange[0].format('YYYY-MM-DD'),
+          revenueRange[1].format('YYYY-MM-DD'),
+          groupBy,
+        );
+      } else {
+        await reportsApi.downloadDailyOccupancyReport(dayjs().format('YYYY-MM-DD'));
+      }
+    } catch {
+      msg.error('Ошибка при генерации PDF');
+    } finally {
+      setPdfLoading(null);
+    }
+  };
 
   const { data: revenue = [], isLoading: revenueLoading } = useQuery({
     queryKey: ['analytics-revenue', revenueRange, groupBy],
@@ -51,9 +74,29 @@ export function AnalyticsPage() {
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 24 }}>
-        Аналитика
-      </Title>
+      {contextHolder}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <Title level={4} style={{ margin: 0 }}>
+          Аналитика
+        </Title>
+        <Space>
+          <Button
+            icon={<FilePdfOutlined />}
+            loading={pdfLoading === 'daily'}
+            onClick={() => handleDownload('daily')}
+          >
+            Отчёт за сегодня
+          </Button>
+          <Button
+            type="primary"
+            icon={<FilePdfOutlined />}
+            loading={pdfLoading === 'revenue'}
+            onClick={() => handleDownload('revenue')}
+          >
+            Экспорт выручки
+          </Button>
+        </Space>
+      </div>
 
       {/* Revenue Chart */}
       <Card

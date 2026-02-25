@@ -3,7 +3,9 @@ import {
   CalendarOutlined,
   ClearOutlined,
   HomeOutlined,
+  LikeOutlined,
   SettingOutlined,
+  TableOutlined,
   TeamOutlined,
   ToolOutlined,
   UnorderedListOutlined,
@@ -31,6 +33,15 @@ export function Sidebar() {
       icon: <CalendarOutlined />,
       label: 'Бронирования',
     },
+    ...(hasRole(UserRole.Receptionist, UserRole.Manager, UserRole.SuperAdmin)
+      ? [
+          {
+            key: '/bookings/grid',
+            icon: <TableOutlined />,
+            label: 'Шахматка',
+          },
+        ]
+      : []),
     {
       key: '/rooms',
       icon: <UnorderedListOutlined />,
@@ -81,6 +92,11 @@ export function Sidebar() {
             label: 'Аналитика',
           },
           {
+            key: '/reviews',
+            icon: <LikeOutlined />,
+            label: 'Отзывы',
+          },
+          {
             key: '/users',
             icon: <TeamOutlined />,
             label: 'Сотрудники',
@@ -94,7 +110,9 @@ export function Sidebar() {
     },
   ];
 
-  const selectedKey = '/' + location.pathname.split('/')[1];
+  const selectedKey = location.pathname === '/bookings/grid'
+    ? '/bookings/grid'
+    : '/' + location.pathname.split('/')[1];
 
   return (
     <Menu

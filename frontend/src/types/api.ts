@@ -215,6 +215,26 @@ export interface BookingFilterParams {
   searchTerm?: string;
 }
 
+// ─── Booking Grid (Шахматка) ──────────────────────────────────────────────────
+
+export interface BookingGridItemDto {
+  id: string;
+  guestFullName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  nightsCount: number;
+  status: BookingStatus;
+}
+
+export interface RoomGridRowDto {
+  roomId: string;
+  roomNumber: string;
+  floor: number;
+  roomTypeName: string;
+  roomStatus: RoomStatus;
+  bookings: BookingGridItemDto[];
+}
+
 // ─── Additional Services ─────────────────────────────────────────────────────
 
 export interface AdditionalServiceDto {
@@ -313,6 +333,37 @@ export interface UserListItemDto {
   role: UserRole;
   isActive: boolean;
   createdAt: string;
+}
+
+export interface UserProfileDto {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber?: string;
+  role: UserRole;
+  createdAt: string;
+  totalBookings: number;
+  totalSpent: number;
+  lastBookingDate?: string;
+}
+
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+
+export interface ReviewDto {
+  id: string;
+  rating: number;
+  comment?: string;
+  guestFullName: string;
+  roomTypeName: string;
+  createdAt: string;
+}
+
+export interface RoomTypeRatingDto {
+  roomTypeId: string;
+  roomTypeName: string;
+  averageRating: number;
+  reviewCount: number;
 }
 
 // ─── Housekeeping ─────────────────────────────────────────────────────────────

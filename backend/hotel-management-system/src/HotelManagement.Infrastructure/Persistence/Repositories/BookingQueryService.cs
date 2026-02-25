@@ -193,6 +193,112 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
         );
     }
 
+    public async Task<List<RoomGridRowDto>> GetGridAsync(
+        DateTime startDate, DateTime endDate, CancellationToken ct = default)
+    {
+        // Все активные номера
+        var roomsSql = """
+            SELECT
+                r.id            AS RoomId,
+                r.number        AS RoomNumber,
+                r.floor         AS Floor,
+                rt.name         AS RoomTypeName,
+                r.status::text  AS RoomStatus
+            FROM rooms r
+            JOIN room_types rt ON rt.id = r.room_type_id
+            WHERE r.is_active = true
+            ORDER BY r.floor, r.number
+            """;
+
+        // Брони, пересекающиеся с [startDate, endDate]
+        var bookingsSql = """
+            SELECT
+                b.id                                                AS Id,
+                b.room_id                                           AS RoomId,
+                u.first_name || ' ' || u.last_name                 AS GuestFullName,
+                b.check_in_date                                     AS CheckInDate,
+                b.check_out_date                                    AS CheckOutDate,
+                DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
+                b.status::text                                      AS Status
+            FROM bookings b
+            JOIN users u ON u.id = b.guest_id
+            WHERE b.status NOT IN ('Cancelled')
+              AND b.check_in_date  < @EndDate
+              AND b.check_out_date > @StartDate
+            ORDER BY b.check_in_date
+            """;
+
+        using var connection = _connectionFactory.CreateConnection();
+        var rooms    = (await connection.QueryAsync<RoomGridRaw>(roomsSql)).ToList();
+        var bookings = (await connection.QueryAsync<BookingGridRaw>(
+            bookingsSql, new { StartDate = startDate, EndDate = endDate })).ToList();
+
+        var bookingsByRoom = bookings.GroupBy(b => b.RoomId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        return rooms.Select(r =>
+        {
+            var roomBookings = bookingsByRoom.TryGetValue(r.RoomId, out var bList)
+                ? bList.Select(b => new BookingGridItemDto(
+                    b.Id, b.GuestFullName, b.CheckInDate, b.CheckOutDate, b.NightsCount, b.Status
+                  )).ToList()
+                : new List<BookingGridItemDto>();
+
+            return new RoomGridRowDto(
+                r.RoomId, r.RoomNumber, r.Floor, r.RoomTypeName, r.RoomStatus, roomBookings);
+        }).ToList();
+    }
+
+    public async Task<IEnumerable<BookingListItemDto>> GetTomorrowCheckInsAsync(CancellationToken ct = default)
+    {
+        var tomorrow = DateTime.UtcNow.Date.AddDays(1);
+        var sql = """
+            SELECT
+                b.id                                                AS Id,
+                r.number                                            AS RoomNumber,
+                rt.name                                             AS RoomTypeName,
+                u.first_name || ' ' || u.last_name                 AS GuestFullName,
+                u.email                                             AS GuestEmail,
+                b.check_in_date                                     AS CheckInDate,
+                b.check_out_date                                    AS CheckOutDate,
+                DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
+                b.guests_count                                      AS GuestsCount,
+                b.status::text                                      AS Status,
+                b.payment_status::text                              AS PaymentStatus,
+                b.total_amount                                      AS TotalAmount,
+                b.created_at                                        AS CreatedAt
+            FROM bookings b
+            JOIN rooms r        ON r.id  = b.room_id
+            JOIN room_types rt  ON rt.id = r.room_type_id
+            JOIN users u        ON u.id  = b.guest_id
+            WHERE b.check_in_date::date = @Tomorrow
+              AND b.status = 'Confirmed'
+            ORDER BY b.check_in_date
+            """;
+
+        return await QueryAsync<BookingListItemDto>(sql, new { Tomorrow = tomorrow }, ct);
+    }
+
+    private class RoomGridRaw
+    {
+        public Guid RoomId { get; init; }
+        public string RoomNumber { get; init; } = "";
+        public int Floor { get; init; }
+        public string RoomTypeName { get; init; } = "";
+        public string RoomStatus { get; init; } = "";
+    }
+
+    private class BookingGridRaw
+    {
+        public Guid Id { get; init; }
+        public Guid RoomId { get; init; }
+        public string GuestFullName { get; init; } = "";
+        public DateTime CheckInDate { get; init; }
+        public DateTime CheckOutDate { get; init; }
+        public int NightsCount { get; init; }
+        public string Status { get; init; } = "";
+    }
+
     private class BookingDetailRaw
     {
         public Guid Id { get; init; }
