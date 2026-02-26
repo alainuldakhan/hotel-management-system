@@ -1,96 +1,151 @@
-import { LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
-import { Button, Layout, theme, Tooltip } from 'antd';
-import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import {
+  BellOutlined,
+  LogoutOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
+import { Avatar, Button, Dropdown, Layout, Space, Tooltip, Typography } from 'antd';
+import type { MenuProps } from 'antd';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { roleLabels } from '../../utils/permissions';
-import { Sidebar } from './Sidebar';
+import { TopNav } from './TopNav';
 
-const { Header, Sider, Content } = Layout;
+const { Header, Content } = Layout;
+const { Text } = Typography;
 
 export function AppLayout() {
-  const [collapsed, setCollapsed] = useState(false);
   const { user, logout } = useAuth();
-  const { token } = theme.useToken();
+  const navigate = useNavigate();
+
+  const userMenuItems: MenuProps['items'] = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: 'Мой профиль',
+      onClick: () => navigate('/profile'),
+    },
+    { type: 'divider' },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: 'Выйти',
+      danger: true,
+      onClick: logout,
+    },
+  ];
+
+  const initials = user
+    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+    : '??';
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider
-        collapsible
-        collapsed={collapsed}
-        onCollapse={setCollapsed}
-        trigger={null}
-        width={220}
+      {/* ── Top Header ────────────────────────────────────────────── */}
+      <Header
         style={{
-          background: token.colorBgContainer,
-          borderRight: `1px solid ${token.colorBorderSecondary}`,
+          background: '#003580',
+          padding: '0 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: 60,
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
         }}
       >
+        {/* Logo */}
         <div
+          onClick={() => navigate('/dashboard')}
           style={{
-            height: 64,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            padding: collapsed ? 0 : '0 16px',
-            fontWeight: 700,
-            fontSize: collapsed ? 18 : 16,
-            color: token.colorPrimary,
-            borderBottom: `1px solid ${token.colorBorderSecondary}`,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
+            gap: 8,
+            cursor: 'pointer',
+            flexShrink: 0,
           }}
         >
-          {collapsed ? '🏨' : '🏨 HMS'}
+          <span
+            style={{
+              color: '#ffffff',
+              fontWeight: 800,
+              fontSize: 22,
+              letterSpacing: '-0.5px',
+              lineHeight: 1,
+            }}
+          >
+            Roomy
+          </span>
         </div>
-        <Sidebar />
-      </Sider>
 
-      <Layout>
-        <Header
-          style={{
-            background: token.colorBgContainer,
-            borderBottom: `1px solid ${token.colorBorderSecondary}`,
-            padding: '0 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            height: 64,
-          }}
-        >
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-          />
+        {/* Navigation */}
+        <TopNav />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {user && (
-              <span style={{ color: token.colorTextSecondary, fontSize: 13 }}>
-                {user.firstName} {user.lastName} · {roleLabels[user.role]}
-              </span>
-            )}
-            <Tooltip title="Выйти">
-              <Button
-                type="text"
-                icon={<LogoutOutlined />}
-                onClick={logout}
-                danger
-              />
-            </Tooltip>
-          </div>
-        </Header>
+        {/* User area */}
+        <Space size={12} style={{ flexShrink: 0 }}>
+          <Tooltip title="Уведомления">
+            <Button
+              type="text"
+              icon={<BellOutlined style={{ fontSize: 18, color: 'rgba(255,255,255,0.8)' }} />}
+              style={{ padding: '4px 8px' }}
+            />
+          </Tooltip>
 
-        <Content
-          style={{
-            padding: 24,
-            background: token.colorBgLayout,
-            overflow: 'auto',
-          }}
-        >
-          <Outlet />
-        </Content>
-      </Layout>
+          {user && (
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" arrow>
+              <Space
+                style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 8 }}
+                className="user-dropdown"
+              >
+                <Avatar
+                  style={{
+                    backgroundColor: '#0071c2',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    fontWeight: 700,
+                    fontSize: 13,
+                  }}
+                  size={34}
+                >
+                  {initials}
+                </Avatar>
+                <div style={{ lineHeight: 1.2 }}>
+                  <Text
+                    style={{
+                      color: '#ffffff',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      display: 'block',
+                    }}
+                  >
+                    {user.firstName} {user.lastName}
+                  </Text>
+                  <Text
+                    style={{
+                      color: 'rgba(255,255,255,0.6)',
+                      fontSize: 11,
+                      display: 'block',
+                    }}
+                  >
+                    {roleLabels[user.role]}
+                  </Text>
+                </div>
+              </Space>
+            </Dropdown>
+          )}
+        </Space>
+      </Header>
+
+      {/* ── Content ───────────────────────────────────────────────── */}
+      <Content
+        style={{
+          background: '#f2f6fa',
+          minHeight: 'calc(100vh - 60px)',
+          padding: '24px',
+        }}
+      >
+        <Outlet />
+      </Content>
     </Layout>
   );
 }

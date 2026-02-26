@@ -21,6 +21,7 @@ import { HousekeepingPage } from './pages/housekeeping/HousekeepingPage';
 import { BookingGridPage } from './pages/bookings/BookingGridPage';
 import { ProfilePage } from './pages/profile/ProfilePage';
 import { ReviewsPage } from './pages/reviews/ReviewsPage';
+import { HomePage } from './pages/home/HomePage';
 import { UserRole } from './types/enums';
 
 const queryClient = new QueryClient({
@@ -40,13 +41,40 @@ export default function App() {
         theme={{
           algorithm: theme.defaultAlgorithm,
           token: {
-            colorPrimary: '#1677ff',
+            colorPrimary: '#0071c2',
+            colorBgLayout: '#f2f6fa',
+            colorBgContainer: '#ffffff',
             borderRadius: 8,
+            fontFamily: "'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            fontSize: 14,
+            colorLink: '#0071c2',
+            colorSuccess: '#008234',
+            colorError: '#cc0000',
+            colorWarning: '#FFB700',
+          },
+          components: {
+            Menu: {
+              itemBg: 'transparent',
+              itemColor: 'rgba(255,255,255,0.85)',
+              itemHoverColor: '#FFB700',
+              itemSelectedColor: '#FFB700',
+              itemSelectedBg: 'rgba(255,255,255,0.1)',
+              horizontalItemSelectedColor: '#FFB700',
+              horizontalItemHoverColor: '#FFB700',
+            },
+            Button: {
+              primaryColor: '#ffffff',
+            },
+            Table: {
+              headerBg: '#003580',
+              headerColor: '#ffffff',
+            },
           },
         }}
       >
         <BrowserRouter>
           <Routes>
+            <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
 
             <Route
@@ -56,7 +84,6 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="rooms" element={<RoomsPage />} />
               <Route
@@ -142,7 +169,7 @@ export default function App() {
               />
             </Route>
 
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </ConfigProvider>

@@ -1,3 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap');
+
+:root {
+  --booking-blue: #003580;
+  --booking-blue-light: #0071c2;
+  --booking-yellow: #FFB700;
+  --booking-bg: #f2f6fa;
+  --booking-dark: #1a1a2e;
+  --booking-text: #1a1a2e;
+  --booking-text-muted: #6b7280;
+  --booking-border: #d4d9de;
+  --booking-white: #ffffff;
+  --booking-success: #008234;
+  --booking-danger: #cc0000;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -5,10 +21,76 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f5f5f5;
+  font-family: 'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--booking-bg);
+  color: var(--booking-text);
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
-  height: 100vh;
+  min-height: 100vh;
+}
+
+/* Ant Design overrides */
+.ant-layout {
+  background: var(--booking-bg) !important;
+}
+
+.ant-layout-content {
+  background: var(--booking-bg) !important;
+}
+
+/* Card hover effect */
+.booking-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  border-radius: 8px !important;
+}
+
+.booking-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 53, 128, 0.15) !important;
+  transform: translateY(-1px);
+}
+
+/* Stat cards */
+.stat-card .ant-statistic-title {
+  color: var(--booking-text-muted) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.stat-card .ant-statistic-content-value {
+  font-weight: 800 !important;
+  color: var(--booking-dark) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--booking-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--booking-border);
+  border-radius: 3px;
+}
+
+/* Top navigation active underline */
+.booking-nav .ant-menu-item-selected {
+  border-bottom: 3px solid var(--booking-yellow) !important;
+  color: var(--booking-yellow) !important;
+}
+
+.booking-nav .ant-menu-item:hover {
+  color: var(--booking-yellow) !important;
+}
+
+/* Table */
+.ant-table-thead > tr > th {
+  background: var(--booking-blue) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
 }

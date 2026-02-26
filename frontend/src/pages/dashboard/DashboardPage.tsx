@@ -1,19 +1,67 @@
 import {
   CalendarOutlined,
   CheckCircleOutlined,
+  DollarOutlined,
+  HomeOutlined,
   LoginOutlined,
   LogoutOutlined,
   ToolOutlined,
-  HomeOutlined,
-  DollarOutlined,
 } from '@ant-design/icons';
-import { Card, Col, Row, Statistic, Typography, Spin, Alert } from 'antd';
+import { Alert, Col, Row, Spin, Statistic, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '../../api/analytics';
+import { useAuth } from '../../hooks/useAuth';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
+
+interface StatCardProps {
+  title: string;
+  value: number | string;
+  suffix?: string;
+  prefix?: React.ReactNode;
+  color?: string;
+  accent?: string;
+}
+
+function StatCard({ title, value, suffix, prefix, color = '#1a1a2e', accent = '#0071c2' }: StatCardProps) {
+  return (
+    <div
+      style={{
+        background: '#ffffff',
+        borderRadius: 12,
+        padding: '20px 24px',
+        boxShadow: '0 2px 8px rgba(0,53,128,0.08)',
+        borderTop: `4px solid ${accent}`,
+        transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+        cursor: 'default',
+        height: '100%',
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(0,53,128,0.15)';
+        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,53,128,0.08)';
+        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
+      }}
+    >
+      <Statistic
+        title={
+          <span style={{ color: '#6b7280', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {title}
+          </span>
+        }
+        value={value}
+        suffix={suffix}
+        prefix={prefix ? <span style={{ color: accent, marginRight: 4, fontSize: 18 }}>{prefix}</span> : undefined}
+        valueStyle={{ color, fontWeight: 800, fontSize: 28 }}
+      />
+    </div>
+  );
+}
 
 export function DashboardPage() {
+  const { user } = useAuth();
   const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard'],
     queryFn: analyticsApi.getDashboard,
@@ -29,132 +77,150 @@ export function DashboardPage() {
   }
 
   if (isError) {
-    return <Alert type="error" message="Не удалось загрузить данные дашборда" />;
+    return <Alert type="error" message="Не удалось загрузить данные дашборда" showIcon style={{ borderRadius: 8 }} />;
   }
 
   const stats = data!;
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 24 }}>
-        Обзор
-      </Title>
+      {/* Welcome Banner */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #003580 0%, #0071c2 100%)',
+          borderRadius: 16,
+          padding: '28px 32px',
+          marginBottom: 28,
+          boxShadow: '0 4px 20px rgba(0,53,128,0.3)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <div>
+          <Title level={3} style={{ margin: 0, color: '#ffffff', fontWeight: 800 }}>
+            Добро пожаловать{user ? `, ${user.firstName}!` : '!'}
+          </Title>
+          <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14 }}>
+            Обзор отеля на сегодня — {new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </Text>
+        </div>
+        <div style={{ fontSize: 56, opacity: 0.4 }}>🏨</div>
+      </div>
 
-      {/* Main KPIs */}
-      <Row gutter={[16, 16]}>
+      {/* KPI Section */}
+      <Title level={5} style={{ marginBottom: 16, color: '#003580', fontWeight: 700 }}>
+        Ключевые показатели
+      </Title>
+      <Row gutter={[16, 16]} style={{ marginBottom: 8 }}>
         <Col xs={12} sm={8} lg={6}>
-          <Card>
-            <Statistic
-              title="Загруженность"
-              value={stats.occupancyPercent}
-              suffix="%"
-              valueStyle={{ color: stats.occupancyPercent > 70 ? '#3f8600' : '#1677ff' }}
-              prefix={<HomeOutlined />}
-            />
-          </Card>
+          <StatCard
+            title="Загруженность"
+            value={stats.occupancyPercent}
+            suffix="%"
+            prefix={<HomeOutlined />}
+            color={stats.occupancyPercent > 70 ? '#008234' : '#0071c2'}
+            accent={stats.occupancyPercent > 70 ? '#008234' : '#0071c2'}
+          />
         </Col>
         <Col xs={12} sm={8} lg={6}>
-          <Card>
-            <Statistic
-              title="Активные брони"
-              value={stats.activeBookings}
-              prefix={<CalendarOutlined />}
-              valueStyle={{ color: '#1677ff' }}
-            />
-          </Card>
+          <StatCard
+            title="Активные брони"
+            value={stats.activeBookings}
+            prefix={<CalendarOutlined />}
+            accent="#0071c2"
+          />
         </Col>
         <Col xs={12} sm={8} lg={6}>
-          <Card>
-            <Statistic
-              title="Выручка сегодня"
-              value={stats.revenueToday}
-              prefix={<DollarOutlined />}
-              suffix="₸"
-              precision={0}
-              valueStyle={{ color: '#3f8600' }}
-            />
-          </Card>
+          <StatCard
+            title="Выручка сегодня"
+            value={stats.revenueToday}
+            suffix=" ₸"
+            prefix={<DollarOutlined />}
+            color="#008234"
+            accent="#008234"
+          />
         </Col>
         <Col xs={12} sm={8} lg={6}>
-          <Card>
-            <Statistic
-              title="Выручка за месяц"
-              value={stats.revenueThisMonth}
-              prefix={<DollarOutlined />}
-              suffix="₸"
-              precision={0}
-              valueStyle={{ color: '#3f8600' }}
-            />
-          </Card>
+          <StatCard
+            title="Выручка за месяц"
+            value={stats.revenueThisMonth}
+            suffix=" ₸"
+            prefix={<DollarOutlined />}
+            color="#008234"
+            accent="#FFB700"
+          />
         </Col>
       </Row>
 
-      {/* Today's activity */}
-      <Title level={5} style={{ marginTop: 32, marginBottom: 16 }}>
-        Сегодня
+      {/* Today's Activity */}
+      <Title level={5} style={{ marginTop: 28, marginBottom: 16, color: '#003580', fontWeight: 700 }}>
+        Активность сегодня
       </Title>
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 8 }}>
         <Col xs={12} sm={6}>
-          <Card>
-            <Statistic
-              title="Бронирований"
-              value={stats.bookingsToday}
-              prefix={<CheckCircleOutlined />}
-            />
-          </Card>
+          <StatCard
+            title="Бронирований"
+            value={stats.bookingsToday}
+            prefix={<CheckCircleOutlined />}
+            accent="#0071c2"
+          />
         </Col>
         <Col xs={12} sm={6}>
-          <Card>
-            <Statistic
-              title="Заселений"
-              value={stats.checkInsToday}
-              prefix={<LoginOutlined />}
-              valueStyle={{ color: '#1677ff' }}
-            />
-          </Card>
+          <StatCard
+            title="Заселений"
+            value={stats.checkInsToday}
+            prefix={<LoginOutlined />}
+            color="#0071c2"
+            accent="#0071c2"
+          />
         </Col>
         <Col xs={12} sm={6}>
-          <Card>
-            <Statistic
-              title="Выселений"
-              value={stats.checkOutsToday}
-              prefix={<LogoutOutlined />}
-            />
-          </Card>
+          <StatCard
+            title="Выселений"
+            value={stats.checkOutsToday}
+            prefix={<LogoutOutlined />}
+            accent="#6b7280"
+          />
         </Col>
         <Col xs={12} sm={6}>
-          <Card>
-            <Statistic
-              title="Заявки на ремонт"
-              value={stats.pendingMaintenanceRequests}
-              prefix={<ToolOutlined />}
-              valueStyle={{
-                color: stats.pendingMaintenanceRequests > 0 ? '#cf1322' : '#3f8600',
-              }}
-            />
-          </Card>
+          <StatCard
+            title="Заявки на ремонт"
+            value={stats.pendingMaintenanceRequests}
+            prefix={<ToolOutlined />}
+            color={stats.pendingMaintenanceRequests > 0 ? '#cc0000' : '#008234'}
+            accent={stats.pendingMaintenanceRequests > 0 ? '#cc0000' : '#008234'}
+          />
         </Col>
       </Row>
 
-      {/* Room status */}
-      <Title level={5} style={{ marginTop: 32, marginBottom: 16 }}>
+      {/* Room Status */}
+      <Title level={5} style={{ marginTop: 28, marginBottom: 16, color: '#003580', fontWeight: 700 }}>
         Статус номеров
       </Title>
       <Row gutter={[16, 16]}>
         <Col xs={8} sm={5}>
-          <Card style={{ borderLeft: '4px solid #52c41a' }}>
-            <Statistic title="Свободны" value={stats.totalRooms - stats.occupiedRooms} />
-          </Card>
+          <StatCard
+            title="Свободных"
+            value={stats.totalRooms - stats.occupiedRooms}
+            accent="#008234"
+            color="#008234"
+          />
         </Col>
         <Col xs={8} sm={5}>
-          <Card style={{ borderLeft: '4px solid #ff4d4f' }}>
-            <Statistic title="Заняты" value={stats.occupiedRooms} />
-          </Card>
+          <StatCard
+            title="Занятых"
+            value={stats.occupiedRooms}
+            accent="#cc0000"
+            color="#cc0000"
+          />
         </Col>
         <Col xs={8} sm={5}>
-          <Card style={{ borderLeft: '4px solid #1677ff' }}>
-            <Statistic title="Всего" value={stats.totalRooms} />
-          </Card>
+          <StatCard
+            title="Всего номеров"
+            value={stats.totalRooms}
+            accent="#003580"
+          />
         </Col>
       </Row>
     </div>
