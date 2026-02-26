@@ -1,6 +1,7 @@
 import { EyeOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   Button,
+  DatePicker,
   Input,
   Select,
   Space,
@@ -9,35 +10,46 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
+import dayjs from 'dayjs';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import dayjs from 'dayjs';
 import { bookingsApi } from '../../api/bookings';
 import { BookingStatusBadge, PaymentStatusBadge } from '../../components/common/StatusBadge';
+import { useAuth } from '../../hooks/useAuth';
 import type { BookingListItemDto } from '../../types/api';
 import { BookingStatus } from '../../types/enums';
 
 const { Title } = Typography;
+const { RangePicker } = DatePicker;
 
-const bookingStatusOptions = [
+const BOOKING_STATUS_OPTIONS = [
   { value: '', label: 'Все статусы' },
-  ...Object.values(BookingStatus).map((s) => ({ value: s, label: s })),
+  { value: BookingStatus.Pending, label: 'Ожидает' },
+  { value: BookingStatus.Confirmed, label: 'Подтверждено' },
+  { value: BookingStatus.CheckedIn, label: 'Заселён' },
+  { value: BookingStatus.CheckedOut, label: 'Выселен' },
+  { value: BookingStatus.Cancelled, label: 'Отменено' },
+  { value: BookingStatus.NoShow, label: 'Не явился' },
 ];
 
 export function BookingsPage() {
   const navigate = useNavigate();
+  const { isStaff } = useAuth();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [dateRange, setDateRange] = useState<[string, string] | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['bookings', page, search, statusFilter],
+    queryKey: ['bookings', page, search, statusFilter, dateRange],
     queryFn: () =>
       bookingsApi.getAll({
         page,
         pageSize: 20,
         searchTerm: search || undefined,
         status: statusFilter || undefined,
+        checkInFrom: dateRange?.[0] ?? undefined,
+        checkInTo: dateRange?.[1] ?? undefined,
       }),
   });
 
@@ -86,7 +98,10 @@ export function BookingsPage() {
         <Button
           size="small"
           icon={<EyeOutlined />}
-          onClick={() => navigate(`/bookings/${record.id}`)}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/bookings/${record.id}`);
+          }}
         />
       ),
     },
@@ -98,28 +113,45 @@ export function BookingsPage() {
         <Title level={4} style={{ margin: 0 }}>
           Бронирования
         </Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => navigate('/bookings/new')}
-        >
-          Новое бронирование
-        </Button>
+        {isStaff && (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/bookings/new')}
+          >
+            Новое бронирование
+          </Button>
+        )}
       </div>
 
-      <Space style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: 16 }} wrap>
         <Input.Search
           placeholder="Поиск по имени или email"
           allowClear
           style={{ width: 280 }}
-          onSearch={setSearch}
-          onChange={(e) => !e.target.value && setSearch('')}
+          onSearch={(v) => { setSearch(v); setPage(1); }}
+          onChange={(e) => { if (!e.target.value) { setSearch(''); setPage(1); } }}
         />
         <Select
           style={{ width: 180 }}
-          options={bookingStatusOptions}
+          options={BOOKING_STATUS_OPTIONS}
           value={statusFilter}
-          onChange={setStatusFilter}
+          onChange={(v) => { setStatusFilter(v); setPage(1); }}
+        />
+        <RangePicker
+          format="DD.MM.YYYY"
+          placeholder={['Заезд от', 'Заезд до']}
+          onChange={(dates) => {
+            if (dates && dates[0] && dates[1]) {
+              setDateRange([
+                dates[0].format('YYYY-MM-DD'),
+                dates[1].format('YYYY-MM-DD'),
+              ]);
+            } else {
+              setDateRange(null);
+            }
+            setPage(1);
+          }}
         />
       </Space>
 

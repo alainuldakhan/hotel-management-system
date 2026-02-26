@@ -2,15 +2,22 @@ import {
   CalendarOutlined,
   CheckCircleOutlined,
   DollarOutlined,
+  EyeOutlined,
   HomeOutlined,
   LoginOutlined,
   LogoutOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
-import { Alert, Col, Row, Spin, Statistic, Typography } from 'antd';
+import { Alert, Button, Card, Col, Row, Spin, Statistic, Table, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
+import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import { analyticsApi } from '../../api/analytics';
+import { bookingsApi } from '../../api/bookings';
 import { useAuth } from '../../hooks/useAuth';
+import { BookingStatusBadge } from '../../components/common/StatusBadge';
+import type { BookingListItemDto } from '../../types/api';
+import { BookingStatus } from '../../types/enums';
 
 const { Title, Text } = Typography;
 
@@ -62,9 +69,38 @@ function StatCard({ title, value, suffix, prefix, color = '#1a1a2e', accent = '#
 
 export function DashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const today = dayjs().format('YYYY-MM-DD');
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard'],
     queryFn: analyticsApi.getDashboard,
+    refetchInterval: 60_000,
+  });
+
+  // Сегодняшние заезды
+  const { data: checkIns } = useQuery({
+    queryKey: ['bookings-checkins-today'],
+    queryFn: () =>
+      bookingsApi.getAll({
+        checkInFrom: today,
+        checkInTo: today,
+        status: BookingStatus.Confirmed,
+        pageSize: 20,
+      }),
+    refetchInterval: 60_000,
+  });
+
+  // Сегодняшние выезды (заселённые гости)
+  const { data: checkOuts } = useQuery({
+    queryKey: ['bookings-checkouts-today'],
+    queryFn: () =>
+      bookingsApi.getAll({
+        checkInFrom: undefined,
+        checkInTo: undefined,
+        status: BookingStatus.CheckedIn,
+        pageSize: 20,
+      }),
     refetchInterval: 60_000,
   });
 
@@ -81,6 +117,30 @@ export function DashboardPage() {
   }
 
   const stats = data!;
+
+  const bookingMiniColumns = [
+    { title: 'Номер', dataIndex: 'roomNumber', key: 'roomNumber', width: 80, render: (v: string) => `№${v}` },
+    { title: 'Гость', dataIndex: 'guestFullName', key: 'guestFullName', ellipsis: true },
+    {
+      title: 'Статус',
+      dataIndex: 'status',
+      key: 'status',
+      width: 120,
+      render: (s: BookingStatus) => <BookingStatusBadge status={s} />,
+    },
+    {
+      title: '',
+      key: 'action',
+      width: 50,
+      render: (_: unknown, record: BookingListItemDto) => (
+        <Button
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => navigate(`/bookings/${record.id}`)}
+        />
+      ),
+    },
+  ];
 
   return (
     <div>
@@ -102,7 +162,13 @@ export function DashboardPage() {
             Добро пожаловать{user ? `, ${user.firstName}!` : '!'}
           </Title>
           <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14 }}>
-            Обзор отеля на сегодня — {new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            Обзор отеля на сегодня —{' '}
+            {new Date().toLocaleDateString('ru-RU', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
           </Text>
         </div>
         <div
@@ -118,7 +184,7 @@ export function DashboardPage() {
           }}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" style={{ width: 38, height: 38 }}>
-            <path d="M3 21h18M3 7l9-4 9 4M4 7v14M20 7v14M8 11v2M8 15v2M12 11v2M12 15v2M16 11v2M16 15v2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M3 21h18M3 7l9-4 9 4M4 7v14M20 7v14M8 11v2M8 15v2M12 11v2M12 15v2M16 11v2M16 15v2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
       </div>
@@ -213,7 +279,7 @@ export function DashboardPage() {
       <Title level={5} style={{ marginTop: 28, marginBottom: 16, color: '#003580', fontWeight: 700 }}>
         Статус номеров
       </Title>
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 28 }}>
         <Col xs={8} sm={5}>
           <StatCard
             title="Свободных"
@@ -236,6 +302,67 @@ export function DashboardPage() {
             value={stats.totalRooms}
             accent="#003580"
           />
+        </Col>
+      </Row>
+
+      {/* Today's Check-Ins & Check-Outs */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={12}>
+          <Card
+            title={
+              <span>
+                <LoginOutlined style={{ color: '#0071c2', marginRight: 8 }} />
+                Ожидаемые заезды сегодня
+              </span>
+            }
+            extra={
+              <Button
+                size="small"
+                type="link"
+                onClick={() => navigate('/bookings')}
+              >
+                Все бронирования
+              </Button>
+            }
+          >
+            <Table
+              rowKey="id"
+              size="small"
+              pagination={false}
+              dataSource={checkIns?.items ?? []}
+              columns={bookingMiniColumns}
+              locale={{ emptyText: 'Заездов сегодня нет' }}
+            />
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={12}>
+          <Card
+            title={
+              <span>
+                <LogoutOutlined style={{ color: '#6b7280', marginRight: 8 }} />
+                Текущие гости (заселены)
+              </span>
+            }
+            extra={
+              <Button
+                size="small"
+                type="link"
+                onClick={() => navigate('/bookings')}
+              >
+                Все бронирования
+              </Button>
+            }
+          >
+            <Table
+              rowKey="id"
+              size="small"
+              pagination={false}
+              dataSource={checkOuts?.items ?? []}
+              columns={bookingMiniColumns}
+              locale={{ emptyText: 'Нет заселённых гостей' }}
+            />
+          </Card>
         </Col>
       </Row>
     </div>

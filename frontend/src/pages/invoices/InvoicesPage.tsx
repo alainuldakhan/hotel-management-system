@@ -1,88 +1,68 @@
-import { DollarOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { DollarOutlined, FilePdfOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   Button,
   Form,
   Input,
   Modal,
   Select,
+  Space,
+  Spin,
   Table,
   Tag,
   Typography,
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { invoicesApi } from '../../api/invoices';
 import { bookingsApi } from '../../api/bookings';
 import { reportsApi } from '../../api/reports';
-import type { InvoiceDto } from '../../types/api';
-import { PaymentStatus } from '../../types/enums';
+import { BookingStatusBadge, PaymentStatusBadge } from '../../components/common/StatusBadge';
+import type { BookingListItemDto, InvoiceDto } from '../../types/api';
+import { BookingStatus, PaymentStatus } from '../../types/enums';
 
 const { Title } = Typography;
 
 const PAYMENT_METHODS = ['Наличные', 'Банковская карта', 'Онлайн-оплата', 'Банковский перевод'];
 
-export function InvoicesPage() {
-  const [msg, contextHolder] = message.useMessage();
-  const [markPaidModal, setMarkPaidModal] = useState<{ id: string; invoiceNumber: string } | null>(null);
-  const [generateModal, setGenerateModal] = useState(false);
-  const [markForm] = Form.useForm();
-  const [generateForm] = Form.useForm();
+const STATUS_LABELS: Record<string, string> = {
+  Pending: 'Ожидает',
+  Paid: 'Оплачен',
+  PartiallyPaid: 'Частично',
+  Refunded: 'Возврат',
+  Failed: 'Ошибка',
+};
 
-  // Fetch invoices from bookings (simplified: load all confirmed bookings and their invoices)
-  // For simplicity, we show all from a specific booking or use a broader search
-  const { data: bookings } = useQuery({
-    queryKey: ['bookings', 'all'],
-    queryFn: () => bookingsApi.getAll({ pageSize: 100 }),
+const STATUS_COLORS: Record<string, string> = {
+  Pending: 'orange',
+  Paid: 'green',
+  PartiallyPaid: 'gold',
+  Refunded: 'cyan',
+  Failed: 'red',
+};
+
+// ── Expandable row: счета конкретного бронирования ──────────────────────────
+
+function BookingInvoices({
+  bookingId,
+  onMarkPaid,
+  onDownloadPdf,
+  onGenerateInvoice,
+}: {
+  bookingId: string;
+  onMarkPaid: (invoice: InvoiceDto) => void;
+  onDownloadPdf: (invoice: InvoiceDto) => void;
+  onGenerateInvoice: (bookingId: string) => void;
+}) {
+  const { data: invoices = [], isLoading } = useQuery({
+    queryKey: ['invoices', 'booking', bookingId],
+    queryFn: () => invoicesApi.getByBooking(bookingId),
   });
 
-  // We'll collect invoice IDs per booking - simplified implementation
-  const [invoices, setInvoices] = useState<InvoiceDto[]>([]);
-
-  const loadInvoicesForBooking = async (bookingId: string) => {
-    try {
-      const data = await invoicesApi.getByBooking(bookingId);
-      setInvoices((prev) => {
-        const existing = new Set(prev.map((i) => i.id));
-        return [...prev, ...data.filter((i) => !existing.has(i.id))];
-      });
-    } catch {
-      // Booking may not have invoices
-    }
-  };
-
-  const generateMutation = useMutation({
-    mutationFn: (values: { bookingId: string; notes?: string }) =>
-      invoicesApi.generate(values.bookingId, values.notes),
-    onSuccess: async (_result, variables) => {
-      await loadInvoicesForBooking(variables.bookingId);
-      setGenerateModal(false);
-      generateForm.resetFields();
-      msg.success(`Счёт создан`);
-    },
-  });
-
-  const markPaidMutation = useMutation({
-    mutationFn: (values: { paymentMethod: string; notes?: string }) =>
-      invoicesApi.markPaid(markPaidModal!.id, values.paymentMethod, values.notes),
-    onSuccess: () => {
-      setInvoices((prev) =>
-        prev.map((i) =>
-          i.id === markPaidModal!.id ? { ...i, status: PaymentStatus.Paid } : i
-        )
-      );
-      setMarkPaidModal(null);
-      markForm.resetFields();
-      msg.success('Счёт отмечен оплаченным');
-    },
-  });
-
-  const columns: ColumnsType<InvoiceDto> = [
-    { title: '№ счёта', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 150 },
-    { title: 'Гость', dataIndex: 'guestFullName', key: 'guestFullName' },
-    { title: 'Номер', dataIndex: 'roomNumber', key: 'roomNumber', width: 90 },
+  const invoiceColumns: ColumnsType<InvoiceDto> = [
+    { title: '№ счёта', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 160 },
     {
       title: 'Сумма',
       dataIndex: 'amount',
@@ -93,19 +73,12 @@ export function InvoicesPage() {
       title: 'Статус',
       dataIndex: 'status',
       key: 'status',
-      render: (s: PaymentStatus) => {
-        const colors: Record<PaymentStatus, string> = {
-          [PaymentStatus.Pending]: 'default',
-          [PaymentStatus.Paid]: 'green',
-          [PaymentStatus.PartiallyPaid]: 'orange',
-          [PaymentStatus.Refunded]: 'cyan',
-          [PaymentStatus.Failed]: 'red',
-        };
-        return <Tag color={colors[s]}>{s}</Tag>;
-      },
+      render: (s: PaymentStatus) => (
+        <Tag color={STATUS_COLORS[s]}>{STATUS_LABELS[s] ?? s}</Tag>
+      ),
     },
     {
-      title: 'Способ оплаты',
+      title: 'Метод оплаты',
       dataIndex: 'paymentMethod',
       key: 'paymentMethod',
       render: (v) => v ?? '—',
@@ -125,18 +98,15 @@ export function InvoicesPage() {
     {
       title: '',
       key: 'actions',
-      width: 190,
+      width: 170,
       render: (_, record) => (
-        <div style={{ display: 'flex', gap: 6 }}>
+        <Space size={4}>
           {record.status === PaymentStatus.Pending && (
             <Button
               size="small"
               icon={<DollarOutlined />}
               type="primary"
-              onClick={() => {
-                setMarkPaidModal({ id: record.id, invoiceNumber: record.invoiceNumber });
-                markForm.resetFields();
-              }}
+              onClick={() => onMarkPaid(record)}
             >
               Оплачен
             </Button>
@@ -144,76 +114,234 @@ export function InvoicesPage() {
           <Button
             size="small"
             icon={<FilePdfOutlined />}
-            onClick={() =>
-              reportsApi
-                .downloadInvoicePdf(record.id, record.invoiceNumber)
-                .catch(() => msg.error('Ошибка скачивания PDF'))
-            }
+            onClick={() => onDownloadPdf(record)}
           >
             PDF
           </Button>
-        </div>
+        </Space>
       ),
+    },
+  ];
+
+  if (isLoading) {
+    return (
+      <div style={{ padding: '16px 24px' }}>
+        <Spin size="small" />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: '#fafafa', padding: '12px 16px', borderRadius: 8 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 10,
+        }}
+      >
+        <span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>
+          Счета{invoices.length > 0 ? ` (${invoices.length})` : ''}
+        </span>
+        <Button
+          size="small"
+          icon={<PlusOutlined />}
+          onClick={() => onGenerateInvoice(bookingId)}
+        >
+          Создать счёт
+        </Button>
+      </div>
+
+      {invoices.length === 0 ? (
+        <div style={{ color: '#999', fontSize: 13, padding: '6px 0' }}>Счетов нет</div>
+      ) : (
+        <Table
+          rowKey="id"
+          columns={invoiceColumns}
+          dataSource={invoices}
+          pagination={false}
+          size="small"
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Main Page ────────────────────────────────────────────────────────────────
+
+const BOOKING_STATUS_OPTIONS = [
+  { value: '', label: 'Все статусы' },
+  { value: BookingStatus.Confirmed, label: 'Подтверждено' },
+  { value: BookingStatus.CheckedIn, label: 'Заселён' },
+  { value: BookingStatus.CheckedOut, label: 'Выселен' },
+];
+
+export function InvoicesPage() {
+  const [msg, contextHolder] = message.useMessage();
+  const qc = useQueryClient();
+
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const [markPaidModal, setMarkPaidModal] = useState<InvoiceDto | null>(null);
+  const [generateBookingId, setGenerateBookingId] = useState<string | null>(null);
+
+  const [markForm] = Form.useForm();
+  const [generateForm] = Form.useForm();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['bookings-for-invoices', page, search, statusFilter],
+    queryFn: () =>
+      bookingsApi.getAll({
+        page,
+        pageSize: 20,
+        searchTerm: search || undefined,
+        status: statusFilter || undefined,
+      }),
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: (values: { notes?: string }) =>
+      invoicesApi.generate(generateBookingId!, values.notes),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices', 'booking', generateBookingId] });
+      setGenerateBookingId(null);
+      generateForm.resetFields();
+      msg.success('Счёт создан');
+    },
+    onError: () => msg.error('Ошибка при создании счёта'),
+  });
+
+  const markPaidMutation = useMutation({
+    mutationFn: (values: { paymentMethod: string; notes?: string }) =>
+      invoicesApi.markPaid(markPaidModal!.id, values.paymentMethod, values.notes),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices', 'booking', markPaidModal?.bookingId] });
+      setMarkPaidModal(null);
+      markForm.resetFields();
+      msg.success('Счёт отмечен оплаченным');
+    },
+    onError: () => msg.error('Ошибка при обновлении'),
+  });
+
+  const handleDownloadPdf = async (invoice: InvoiceDto) => {
+    try {
+      await reportsApi.downloadInvoicePdf(invoice.id, invoice.invoiceNumber);
+    } catch {
+      msg.error('Ошибка скачивания PDF');
+    }
+  };
+
+  const columns: ColumnsType<BookingListItemDto> = [
+    { title: 'Номер', dataIndex: 'roomNumber', key: 'roomNumber', width: 90 },
+    { title: 'Гость', dataIndex: 'guestFullName', key: 'guestFullName' },
+    {
+      title: 'Заезд',
+      dataIndex: 'checkInDate',
+      key: 'checkInDate',
+      width: 110,
+      render: (v: string) => dayjs(v).format('DD.MM.YYYY'),
+    },
+    {
+      title: 'Выезд',
+      dataIndex: 'checkOutDate',
+      key: 'checkOutDate',
+      width: 110,
+      render: (v: string) => dayjs(v).format('DD.MM.YYYY'),
+    },
+    {
+      title: 'Статус',
+      dataIndex: 'status',
+      key: 'status',
+      render: (s: BookingStatus) => <BookingStatusBadge status={s} />,
+    },
+    {
+      title: 'Оплата',
+      dataIndex: 'paymentStatus',
+      key: 'paymentStatus',
+      render: (s) => <PaymentStatusBadge status={s} />,
+    },
+    {
+      title: 'Сумма',
+      dataIndex: 'totalAmount',
+      key: 'totalAmount',
+      render: (v: number) => `${v.toLocaleString()} ₸`,
     },
   ];
 
   return (
     <div>
       {contextHolder}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          Счета
-        </Title>
-        <Button
-          type="primary"
-          onClick={() => {
-            generateForm.resetFields();
-            setGenerateModal(true);
+
+      <Title level={4} style={{ margin: '0 0 16px' }}>
+        Счета
+      </Title>
+
+      <Space style={{ marginBottom: 16 }}>
+        <Input.Search
+          placeholder="Поиск по гостю или email"
+          allowClear
+          style={{ width: 280 }}
+          onSearch={setSearch}
+          onChange={(e) => !e.target.value && setSearch('')}
+        />
+        <Select
+          style={{ width: 180 }}
+          options={BOOKING_STATUS_OPTIONS}
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
           }}
-        >
-          Сгенерировать счёт
-        </Button>
-      </div>
+        />
+      </Space>
 
       <Table
         rowKey="id"
         columns={columns}
-        dataSource={invoices}
-        loading={false}
-        pagination={{ pageSize: 20 }}
+        dataSource={data?.items ?? []}
+        loading={isLoading}
+        pagination={{
+          current: page,
+          pageSize: 20,
+          total: data?.totalCount ?? 0,
+          onChange: setPage,
+          showTotal: (total) => `Всего: ${total}`,
+        }}
         size="middle"
-        locale={{ emptyText: 'Загрузите счета через бронирования или создайте новый' }}
+        expandable={{
+          expandedRowRender: (record) => (
+            <BookingInvoices
+              bookingId={record.id}
+              onMarkPaid={(invoice) => {
+                setMarkPaidModal(invoice);
+                markForm.resetFields();
+              }}
+              onDownloadPdf={handleDownloadPdf}
+              onGenerateInvoice={(bookingId) => {
+                generateForm.resetFields();
+                setGenerateBookingId(bookingId);
+              }}
+            />
+          ),
+          rowExpandable: () => true,
+        }}
       />
 
       {/* Generate Invoice Modal */}
       <Modal
-        title="Сгенерировать счёт"
-        open={generateModal}
-        onOk={() =>
-          generateForm.validateFields().then((v) => generateMutation.mutate(v))
-        }
-        onCancel={() => setGenerateModal(false)}
+        title="Создать счёт"
+        open={!!generateBookingId}
+        onOk={() => generateForm.validateFields().then((v) => generateMutation.mutate(v))}
+        onCancel={() => setGenerateBookingId(null)}
         confirmLoading={generateMutation.isPending}
         okText="Создать"
         cancelText="Отмена"
       >
         <Form form={generateForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="bookingId" label="Бронирование" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              placeholder="Выберите бронирование"
-              filterOption={(input, option) =>
-                (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
-              }
-              options={
-                bookings?.items?.map((b) => ({
-                  value: b.id,
-                  label: `${b.guestFullName} — №${b.roomNumber} (${dayjs(b.checkInDate).format('DD.MM.YYYY')})`,
-                })) ?? []
-              }
-            />
-          </Form.Item>
-          <Form.Item name="notes" label="Заметки">
+          <Form.Item name="notes" label="Заметки (необязательно)">
             <Input.TextArea rows={3} />
           </Form.Item>
         </Form>
@@ -221,11 +349,9 @@ export function InvoicesPage() {
 
       {/* Mark Paid Modal */}
       <Modal
-        title={`Отметить оплаченным: ${markPaidModal?.invoiceNumber}`}
+        title={`Оплата счёта: ${markPaidModal?.invoiceNumber}`}
         open={!!markPaidModal}
-        onOk={() =>
-          markForm.validateFields().then((v) => markPaidMutation.mutate(v))
-        }
+        onOk={() => markForm.validateFields().then((v) => markPaidMutation.mutate(v))}
         onCancel={() => setMarkPaidModal(null)}
         confirmLoading={markPaidMutation.isPending}
         okText="Подтвердить"

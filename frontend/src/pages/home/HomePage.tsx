@@ -8,6 +8,7 @@ import 'dayjs/locale/ru';
 import { useAuth } from '../../hooks/useAuth';
 import { roomTypesApi } from '../../api/roomTypes';
 import { servicesApi } from '../../api/additionalServices';
+import { reviewsApi } from '../../api/reviews';
 
 dayjs.locale('ru');
 
@@ -68,29 +69,7 @@ const ROOM_FALLBACK_IMAGES = [
   'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=600&h=400&fit=crop',
 ];
 
-const STATIC_REVIEWS = [
-  {
-    name: 'Алия М.',
-    roomType: 'Deluxe Suite',
-    rating: 5,
-    comment: 'Роскошный номер, безупречный сервис. Персонал очень внимательный и отзывчивый. Обязательно вернёмся!',
-    date: 'Январь 2026',
-  },
-  {
-    name: 'Дмитрий К.',
-    roomType: 'Стандартный номер',
-    rating: 5,
-    comment: 'Отличное соотношение цена/качество. Чистота на высшем уровне, завтрак вкусный. Всем рекомендую!',
-    date: 'Февраль 2026',
-  },
-  {
-    name: 'Сауле Б.',
-    roomType: 'Семейный люкс',
-    rating: 4,
-    comment: 'Просторный номер для семьи с детьми. Бассейн и спа — отдельный восторг. Дети в восхищении.',
-    date: 'Февраль 2026',
-  },
-];
+
 
 const WHY_FEATURES = [
   {
@@ -198,6 +177,11 @@ export function HomePage() {
     queryKey: ['services-public'],
     queryFn: servicesApi.getAll,
     select: (list) => list.filter((s) => s.isActive),
+  });
+
+  const { data: reviewsData, isLoading: reviewsLoading } = useQuery({
+    queryKey: ['reviews-public'],
+    queryFn: () => reviewsApi.getAll(undefined, 1, 6),
   });
 
   /* ── Search handler ─────────────────────────────────────────── */
@@ -586,29 +570,41 @@ export function HomePage() {
             <h2 style={{ fontSize: 28, fontWeight: 800, color: '#1a1a2e', margin: '0 0 6px 0' }}>Отзывы гостей</h2>
             <p style={{ fontSize: 15, color: '#6b7280', margin: 0 }}>Нам доверяют сотни гостей</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
-            {STATIC_REVIEWS.map((review, idx) => (
-              <div key={idx} style={{ background: '#ffffff', borderRadius: 12, padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,53,128,0.06)', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', gap: 3, marginBottom: 14 }}>
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <svg key={i} viewBox="0 0 24 24" style={{ width: 16, height: 16 }} fill={i < review.rating ? '#FFB700' : '#e2e8f0'}>
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                    </svg>
-                  ))}
-                </div>
-                <p style={{ fontSize: 15, color: '#374151', lineHeight: 1.65, marginBottom: 20, flex: 1, fontStyle: 'italic' }}>
-                  "{review.comment}"
-                </p>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1a2e' }}>{review.name}</div>
-                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{review.roomType}</div>
+          {reviewsLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}>
+              <Spin size="large" />
+            </div>
+          ) : !reviewsData || reviewsData.items.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px 0', color: '#6b7280', fontSize: 16 }}>
+              Отзывов пока нет
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+              {reviewsData.items.map((review) => (
+                <div key={review.id} style={{ background: '#ffffff', borderRadius: 12, padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,53,128,0.06)', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', gap: 3, marginBottom: 14 }}>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <svg key={i} viewBox="0 0 24 24" style={{ width: 16, height: 16 }} fill={i < review.rating ? '#FFB700' : '#e2e8f0'}>
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    ))}
                   </div>
-                  <div style={{ fontSize: 12, color: '#9ca3af' }}>{review.date}</div>
+                  <p style={{ fontSize: 15, color: '#374151', lineHeight: 1.65, marginBottom: 20, flex: 1, fontStyle: 'italic' }}>
+                    "{review.comment || 'Отличный отель!'}"
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1a2e' }}>{review.guestFullName}</div>
+                      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{review.roomTypeName}</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#9ca3af' }}>
+                      {new Date(review.createdAt).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

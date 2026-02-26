@@ -1,11 +1,12 @@
 import {
-  UserOutlined,
+  CalendarOutlined,
+  CloseOutlined,
+  EditOutlined,
   MailOutlined,
   PhoneOutlined,
-  CalendarOutlined,
-  EditOutlined,
   SaveOutlined,
-  CloseOutlined,
+  StarOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import {
   Avatar,
@@ -15,18 +16,26 @@ import {
   Descriptions,
   Form,
   Input,
+  Modal,
+  Rate,
   Row,
   Spin,
   Statistic,
+  Table,
   Tag,
   Typography,
   message,
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { profileApi, type UpdateProfilePayload } from '../../api/profile';
 import { bookingsApi } from '../../api/bookings';
+import { reviewsApi, type CreateReviewPayload } from '../../api/reviews';
+import { BookingStatusBadge } from '../../components/common/StatusBadge';
+import type { BookingListItemDto } from '../../types/api';
+import { BookingStatus } from '../../types/enums';
 
 const { Title, Text } = Typography;
 
@@ -51,7 +60,9 @@ const ROLE_COLORS: Record<string, string> = {
 export function ProfilePage() {
   const [msg, contextHolder] = message.useMessage();
   const [editing, setEditing] = useState(false);
+  const [reviewModal, setReviewModal] = useState<BookingListItemDto | null>(null);
   const [form] = Form.useForm();
+  const [reviewForm] = Form.useForm();
   const queryClient = useQueryClient();
 
   const { data: profile, isLoading } = useQuery({
@@ -75,6 +86,16 @@ export function ProfilePage() {
     onError: () => msg.error('Ошибка сохранения'),
   });
 
+  const createReviewMutation = useMutation({
+    mutationFn: (payload: CreateReviewPayload) => reviewsApi.create(payload),
+    onSuccess: () => {
+      setReviewModal(null);
+      reviewForm.resetFields();
+      msg.success('Отзыв опубликован. Спасибо!');
+    },
+    onError: () => msg.error('Не удалось опубликовать отзыв'),
+  });
+
   if (isLoading || !profile) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
@@ -94,16 +115,66 @@ export function ProfilePage() {
     setEditing(true);
   };
 
-  const handleCancel = () => {
-    setEditing(false);
-    form.resetFields();
-  };
+  const bookingColumns: ColumnsType<BookingListItemDto> = [
+    {
+      title: 'Номер',
+      dataIndex: 'roomNumber',
+      key: 'roomNumber',
+      width: 90,
+      render: (v: string) => `№${v}`,
+    },
+    { title: 'Тип', dataIndex: 'roomTypeName', key: 'roomTypeName' },
+    {
+      title: 'Заезд',
+      dataIndex: 'checkInDate',
+      key: 'checkInDate',
+      width: 110,
+      render: (v: string) => dayjs(v).format('DD.MM.YYYY'),
+    },
+    {
+      title: 'Выезд',
+      dataIndex: 'checkOutDate',
+      key: 'checkOutDate',
+      width: 110,
+      render: (v: string) => dayjs(v).format('DD.MM.YYYY'),
+    },
+    {
+      title: 'Статус',
+      dataIndex: 'status',
+      key: 'status',
+      render: (s: BookingStatus) => <BookingStatusBadge status={s} />,
+    },
+    {
+      title: 'Сумма',
+      dataIndex: 'totalAmount',
+      key: 'totalAmount',
+      render: (v: number) => `${v.toLocaleString()} ₸`,
+    },
+    {
+      title: '',
+      key: 'review',
+      width: 120,
+      render: (_, record) =>
+        record.status === BookingStatus.CheckedOut ? (
+          <Button
+            size="small"
+            icon={<StarOutlined />}
+            onClick={() => {
+              reviewForm.resetFields();
+              setReviewModal(record);
+            }}
+          >
+            Отзыв
+          </Button>
+        ) : null,
+    },
+  ];
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
       {contextHolder}
 
-      {/* ── Header Card ───────────────────────────────────────────── */}
+      {/* ── Header Card ─────────────────────────────────────────── */}
       <Card style={{ marginBottom: 24 }}>
         <Row gutter={24} align="middle">
           <Col>
@@ -139,11 +210,7 @@ export function ProfilePage() {
         <Col xs={24} md={14}>
           <Card title="Личные данные" style={{ marginBottom: 24 }}>
             {editing ? (
-              <Form
-                form={form}
-                layout="vertical"
-                onFinish={(v) => updateMutation.mutate(v)}
-              >
+              <Form form={form} layout="vertical" onFinish={(v) => updateMutation.mutate(v)}>
                 <Form.Item name="firstName" label="Имя" rules={[{ required: true }]}>
                   <Input prefix={<UserOutlined />} />
                 </Form.Item>
@@ -162,7 +229,10 @@ export function ProfilePage() {
                   >
                     Сохранить
                   </Button>
-                  <Button icon={<CloseOutlined />} onClick={handleCancel}>
+                  <Button
+                    icon={<CloseOutlined />}
+                    onClick={() => { setEditing(false); form.resetFields(); }}
+                  >
                     Отмена
                   </Button>
                 </div>
@@ -194,42 +264,76 @@ export function ProfilePage() {
           <Card style={{ marginBottom: 24 }}>
             <Row gutter={16}>
               <Col span={12}>
-                <Statistic
-                  title="Всего броней"
-                  value={profile.totalBookings}
-                  suffix="шт."
-                />
+                <Statistic title="Всего броней" value={profile.totalBookings} suffix="шт." />
               </Col>
               <Col span={12}>
-                <Statistic
-                  title="Потрачено"
-                  value={profile.totalSpent}
-                  precision={0}
-                  suffix="₸"
-                />
+                <Statistic title="Потрачено" value={profile.totalSpent} precision={0} suffix="₸" />
               </Col>
             </Row>
           </Card>
         </Col>
       </Row>
 
-      {/* ── Recent Bookings (Guest only) ──────────────────────────── */}
+      {/* ── Booking History (Guest only) ─────────────────────────── */}
       {profile.role === 'Guest' && myBookings && myBookings.length > 0 && (
-        <Card title="История бронирований">
-          <Descriptions column={1} size="small">
-            {myBookings.slice(0, 5).map((b) => (
-              <Descriptions.Item
-                key={b.id}
-                label={`№${b.roomNumber} (${b.roomTypeName})`}
-              >
-                {dayjs(b.checkInDate).format('DD.MM.YYYY')} —{' '}
-                {dayjs(b.checkOutDate).format('DD.MM.YYYY')} ·{' '}
-                {b.totalAmount.toLocaleString()} ₸
-              </Descriptions.Item>
-            ))}
-          </Descriptions>
+        <Card
+          title="История бронирований"
+          extra={
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Нажмите «Отзыв» для выселенных бронирований
+            </Text>
+          }
+        >
+          <Table
+            rowKey="id"
+            size="small"
+            pagination={{ pageSize: 10, showTotal: (t) => `Всего: ${t}` }}
+            dataSource={myBookings}
+            columns={bookingColumns}
+          />
         </Card>
       )}
+
+      {/* ── Review Modal ─────────────────────────────────────────── */}
+      <Modal
+        title={
+          reviewModal
+            ? `Отзыв — №${reviewModal.roomNumber} (${reviewModal.roomTypeName})`
+            : 'Оставить отзыв'
+        }
+        open={!!reviewModal}
+        onOk={() =>
+          reviewForm.validateFields().then((v) =>
+            createReviewMutation.mutate({
+              bookingId: reviewModal!.id,
+              rating: v.rating,
+              comment: v.comment,
+            })
+          )
+        }
+        onCancel={() => setReviewModal(null)}
+        confirmLoading={createReviewMutation.isPending}
+        okText="Опубликовать"
+        cancelText="Отмена"
+      >
+        <Form form={reviewForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="rating"
+            label="Оценка"
+            rules={[{ required: true, message: 'Пожалуйста, поставьте оценку' }]}
+          >
+            <Rate />
+          </Form.Item>
+          <Form.Item name="comment" label="Комментарий (необязательно)">
+            <Input.TextArea
+              rows={4}
+              placeholder="Расскажите о вашем пребывании..."
+              maxLength={1000}
+              showCount
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }
