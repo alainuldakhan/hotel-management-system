@@ -15,8 +15,8 @@ import {
 } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { bookingsApi } from '../../api/bookings';
 import { roomsApi } from '../../api/rooms';
 import { usersApi } from '../../api/users';
@@ -27,11 +27,29 @@ const { Title } = Typography;
 
 export function CreateBookingPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const qc = useQueryClient();
   const [form] = Form.useForm();
   const [msg, contextHolder] = message.useMessage();
   const [availableRooms, setAvailableRooms] = useState<Awaited<ReturnType<typeof roomsApi.getAvailable>>>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Pre-fill form from URL params (passed from HomePage search)
+  useEffect(() => {
+    const checkIn = searchParams.get('checkIn');
+    const checkOut = searchParams.get('checkOut');
+    const adults = searchParams.get('adults');
+    const transfer = searchParams.get('transfer');
+
+    if (checkIn || checkOut || adults) {
+      form.setFieldsValue({
+        ...(checkIn ? { checkInDate: dayjs(checkIn) } : {}),
+        ...(checkOut ? { checkOutDate: dayjs(checkOut) } : {}),
+        ...(adults ? { guestsCount: Number(adults) } : {}),
+        ...(transfer === '1' ? { specialRequests: 'Необходим трансфер от аэропорта' } : {}),
+      });
+    }
+  }, [searchParams, form]);
 
   const { data: guests = [] } = useQuery({
     queryKey: ['users'],

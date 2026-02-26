@@ -42,15 +42,18 @@ export default function App() {
           algorithm: theme.defaultAlgorithm,
           token: {
             colorPrimary: '#0071c2',
-            colorBgLayout: '#f2f6fa',
+            colorBgLayout: '#f0f4f8',
             colorBgContainer: '#ffffff',
             borderRadius: 8,
-            fontFamily: "'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            borderRadiusLG: 12,
+            fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             fontSize: 14,
             colorLink: '#0071c2',
             colorSuccess: '#008234',
             colorError: '#cc0000',
             colorWarning: '#FFB700',
+            boxShadow: '0 2px 8px rgba(0, 53, 128, 0.08)',
+            boxShadowSecondary: '0 4px 16px rgba(0, 53, 128, 0.12)',
           },
           components: {
             Menu: {
@@ -64,10 +67,35 @@ export default function App() {
             },
             Button: {
               primaryColor: '#ffffff',
+              borderRadius: 8,
+              fontWeight: 600,
             },
             Table: {
               headerBg: '#003580',
               headerColor: '#ffffff',
+              rowHoverBg: '#f0f5ff',
+              borderColor: '#e2e8f0',
+            },
+            Card: {
+              boxShadow: '0 2px 8px rgba(0, 53, 128, 0.08)',
+              borderRadiusLG: 12,
+            },
+            Modal: {
+              borderRadiusLG: 12,
+            },
+            Select: {
+              borderRadius: 8,
+            },
+            Input: {
+              borderRadius: 8,
+            },
+            DatePicker: {
+              borderRadius: 8,
+            },
+            Tag: {
+              borderRadius: 100,
+              fontWeight: 600,
+              fontSize: 12,
             },
           },
         }}

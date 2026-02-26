@@ -105,7 +105,22 @@ export function DashboardPage() {
             Обзор отеля на сегодня — {new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </Text>
         </div>
-        <div style={{ fontSize: 56, opacity: 0.4 }}>🏨</div>
+        <div
+          style={{
+            width: 72,
+            height: 72,
+            background: 'rgba(255,255,255,0.08)',
+            borderRadius: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" style={{ width: 38, height: 38 }}>
+            <path d="M3 21h18M3 7l9-4 9 4M4 7v14M20 7v14M8 11v2M8 15v2M12 11v2M12 15v2M16 11v2M16 15v2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
       </div>
 
       {/* KPI Section */}

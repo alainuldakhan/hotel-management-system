@@ -127,7 +127,11 @@ export function LoginPage() {
               textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: 52, lineHeight: 1, marginBottom: 12 }}>🏨</div>
+            <div style={{ marginBottom: 12 }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" style={{ width: 44, height: 44 }}>
+                <path d="M3 21h18M3 7l9-4 9 4M4 7v14M20 7v14M8 11v2M8 15v2M12 11v2M12 15v2M16 11v2M16 15v2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
             <Title level={3} style={{ margin: 0, color: '#ffffff', fontWeight: 800 }}>
               Добро пожаловать
             </Title>

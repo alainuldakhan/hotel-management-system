@@ -1,4 +1,5 @@
 import {
+  BankOutlined,
   BellOutlined,
   LogoutOutlined,
   UserOutlined,
@@ -44,7 +45,7 @@ export function AppLayout() {
       <Header
         style={{
           background: '#003580',
-          padding: '0 24px',
+          padding: '0 28px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -52,7 +53,8 @@ export function AppLayout() {
           position: 'sticky',
           top: 0,
           zIndex: 100,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+          gap: 16,
         }}
       >
         {/* Logo */}
@@ -64,52 +66,94 @@ export function AppLayout() {
             gap: 8,
             cursor: 'pointer',
             flexShrink: 0,
+            userSelect: 'none',
           }}
         >
-          <span
+          {/* Hotel icon */}
+          <div
             style={{
-              color: '#ffffff',
-              fontWeight: 800,
-              fontSize: 22,
-              letterSpacing: '-0.5px',
-              lineHeight: 1,
+              width: 32,
+              height: 32,
+              background: 'rgba(255,255,255,0.15)',
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            Roomy
-          </span>
+            <BankOutlined style={{ fontSize: 17, color: '#FFB700' }} />
+          </div>
+          <div style={{ lineHeight: 1 }}>
+            <span
+              style={{
+                color: '#ffffff',
+                fontWeight: 800,
+                fontSize: 20,
+                letterSpacing: '-0.5px',
+              }}
+            >
+              Roomy
+            </span>
+            <span
+              style={{
+                display: 'inline-block',
+                width: 5,
+                height: 5,
+                background: '#FFB700',
+                borderRadius: '50%',
+                marginLeft: 2,
+                marginBottom: 4,
+              }}
+            />
+          </div>
         </div>
 
         {/* Navigation */}
         <TopNav />
 
         {/* User area */}
-        <Space size={12} style={{ flexShrink: 0 }}>
-          <Tooltip title="Уведомления">
+        <Space size={4} style={{ flexShrink: 0 }}>
+          <Tooltip title="Уведомления" placement="bottom">
             <Button
               type="text"
-              icon={<BellOutlined style={{ fontSize: 18, color: 'rgba(255,255,255,0.8)' }} />}
-              style={{ padding: '4px 8px' }}
+              icon={
+                <BellOutlined
+                  style={{ fontSize: 18, color: 'rgba(255,255,255,0.7)' }}
+                />
+              }
+              style={{
+                padding: '4px 10px',
+                borderRadius: 8,
+                transition: 'background 0.15s',
+              }}
             />
           </Tooltip>
 
           {user && (
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" arrow>
               <Space
-                style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 8 }}
+                size={10}
+                style={{
+                  cursor: 'pointer',
+                  padding: '6px 10px',
+                  borderRadius: 8,
+                  transition: 'background 0.15s',
+                }}
                 className="user-dropdown"
               >
                 <Avatar
                   style={{
                     backgroundColor: '#0071c2',
-                    border: '2px solid rgba(255,255,255,0.3)',
+                    border: '2px solid rgba(255,255,255,0.25)',
                     fontWeight: 700,
                     fontSize: 13,
+                    flexShrink: 0,
                   }}
                   size={34}
                 >
                   {initials}
                 </Avatar>
-                <div style={{ lineHeight: 1.2 }}>
+                <div style={{ lineHeight: 1.25 }}>
                   <Text
                     style={{
                       color: '#ffffff',
@@ -122,7 +166,7 @@ export function AppLayout() {
                   </Text>
                   <Text
                     style={{
-                      color: 'rgba(255,255,255,0.6)',
+                      color: 'rgba(255,255,255,0.55)',
                       fontSize: 11,
                       display: 'block',
                     }}
@@ -139,9 +183,9 @@ export function AppLayout() {
       {/* ── Content ───────────────────────────────────────────────── */}
       <Content
         style={{
-          background: '#f2f6fa',
+          background: '#f0f4f8',
           minHeight: 'calc(100vh - 60px)',
-          padding: '24px',
+          padding: '28px',
         }}
       >
         <Outlet />
