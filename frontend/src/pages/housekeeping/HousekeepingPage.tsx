@@ -1,357 +1,154 @@
-import {
-  CheckOutlined,
-  CloseOutlined,
-  PlusOutlined,
-  UserAddOutlined,
-} from '@ant-design/icons';
-import {
-  Button,
-  DatePicker,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Select,
-  Space,
-  Table,
-  Typography,
-  message,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import dayjs from 'dayjs';
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { Plus, RefreshCw, CheckCircle } from 'lucide-react';
 import { housekeepingApi } from '../../api/housekeeping';
 import { roomsApi } from '../../api/rooms';
 import { usersApi } from '../../api/users';
-import {
-  HousekeepingStatusBadge,
-  HousekeepingTypeBadge,
-} from '../../components/common/StatusBadge';
-import { useAuth } from '../../hooks/useAuth';
-import type { HousekeepingTaskListItemDto } from '../../types/api';
-import { HousekeepingStatus, HousekeepingTaskType, UserRole } from '../../types/enums';
+import type { HousekeepingTaskDto, RoomDto, UserDto } from '../../types/api';
+import { HousekeepingTaskType, HousekeepingStatus, UserRole } from '../../types/enums';
+import { formatDate } from '../../utils/format';
+import StatusBadge from '../../components/common/StatusBadge';
+import PageHeader from '../../components/common/PageHeader';
+import Table from '../../components/common/Table';
+import Pagination from '../../components/common/Pagination';
+import Modal from '../../components/common/Modal';
+import Button from '../../components/common/Button';
+import Card from '../../components/common/Card';
 
-const { Title } = Typography;
+const PAGE_SIZE = 15;
+const TASK_LABELS: Record<string, string> = {
+  Cleaning: 'Уборка', LaundryChange: 'Смена белья', Maintenance: 'Техобслуживание',
+  Inspection: 'Инспекция', Turndown: 'Вечерняя уборка',
+};
 
-const statusOptions = [
-  { value: '', label: 'Все статусы' },
-  { value: HousekeepingStatus.Pending, label: 'Ожидает' },
-  { value: HousekeepingStatus.InProgress, label: 'В работе' },
-  { value: HousekeepingStatus.Completed, label: 'Выполнена' },
-  { value: HousekeepingStatus.Cancelled, label: 'Отменена' },
-];
-
-const typeOptions = Object.values(HousekeepingTaskType).map((t) => ({ value: t, label: t }));
-
-export function HousekeepingPage() {
-  const qc = useQueryClient();
-  const { user, isManagerOrAbove, hasRole } = useAuth();
-
-  const [statusFilter, setStatusFilter] = useState('');
+export default function HousekeepingPage() {
+  const [items, setItems] = useState<HousekeepingTaskDto[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
-  const [createModal, setCreateModal] = useState(false);
-  const [assignModal, setAssignModal] = useState<string | null>(null);
-  const [completeModal, setCompleteModal] = useState<string | null>(null);
-  const [createForm] = Form.useForm();
-  const [assignForm] = Form.useForm();
-  const [completeForm] = Form.useForm();
-  const [msg, contextHolder] = message.useMessage();
+  const [statusFilter, setStatusFilter] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [rooms, setRooms] = useState<RoomDto[]>([]);
+  const [staff, setStaff] = useState<UserDto[]>([]);
+  const [form, setForm] = useState({ roomId: '', taskType: 'Cleaning', notes: '', assignedToId: '', scheduledFor: '' });
+  const [creating, setCreating] = useState(false);
+  const [acting, setActing] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['housekeeping', page, statusFilter],
-    queryFn: () =>
-      housekeepingApi.getAll({ page, pageSize: 20, status: statusFilter || undefined }),
-  });
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await housekeepingApi.getAll({ page, pageSize: PAGE_SIZE, status: statusFilter || undefined });
+      setItems(data.items);
+      setTotalPages(data.totalPages);
+    } finally { setLoading(false); }
+  }, [page, statusFilter]);
 
-  const { data: rooms = [] } = useQuery({
-    queryKey: ['rooms'],
-    queryFn: roomsApi.getAll,
-    enabled: createModal,
-  });
+  useEffect(() => { load(); }, [load]);
 
-  const { data: staffUsers = [] } = useQuery({
-    queryKey: ['users', 'housekeeping-staff'],
-    queryFn: () => usersApi.getAll(),
-    enabled: !!assignModal,
-    select: (users) =>
-      users.filter(
-        (u) => u.role === UserRole.HousekeepingStaff || u.role === UserRole.Manager || u.role === UserRole.SuperAdmin
-      ),
-  });
+  const openCreate = async () => {
+    setCreateOpen(true);
+    const [r, u] = await Promise.all([roomsApi.getAll({ pageSize: 200 }), usersApi.getAll({ role: UserRole.HousekeepingStaff, pageSize: 100 })]);
+    setRooms(r.data.items);
+    setStaff(u.data.items);
+  };
 
-  const createMutation = useMutation({
-    mutationFn: housekeepingApi.create,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['housekeeping'] });
-      setCreateModal(false);
-      createForm.resetFields();
-      msg.success('Задача создана');
-    },
-    onError: () => msg.error('Ошибка при создании задачи'),
-  });
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      await housekeepingApi.create({ roomId: form.roomId, taskType: form.taskType, notes: form.notes || undefined, assignedToId: form.assignedToId || undefined, scheduledFor: form.scheduledFor || undefined });
+      setCreateOpen(false);
+      setForm({ roomId: '', taskType: 'Cleaning', notes: '', assignedToId: '', scheduledFor: '' });
+      load();
+    } finally { setCreating(false); }
+  };
 
-  const assignMutation = useMutation({
-    mutationFn: ({ id, assignedToUserId }: { id: string; assignedToUserId: string }) =>
-      housekeepingApi.assign(id, assignedToUserId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['housekeeping'] });
-      setAssignModal(null);
-      assignForm.resetFields();
-      msg.success('Задача назначена');
-    },
-    onError: () => msg.error('Ошибка при назначении'),
-  });
+  const handleComplete = async (id: string) => {
+    setActing(id);
+    try { await housekeepingApi.complete(id); load(); } finally { setActing(null); }
+  };
 
-  const completeMutation = useMutation({
-    mutationFn: ({ id, completionNotes }: { id: string; completionNotes?: string }) =>
-      housekeepingApi.complete(id, completionNotes),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['housekeeping'] });
-      qc.invalidateQueries({ queryKey: ['rooms'] });
-      setCompleteModal(null);
-      completeForm.resetFields();
-      msg.success('Задача выполнена');
-    },
-    onError: () => msg.error('Ошибка при завершении'),
-  });
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none', color: '#1e293b', background: '#fff' };
 
-  const cancelMutation = useMutation({
-    mutationFn: housekeepingApi.cancel,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['housekeeping'] });
-      msg.success('Задача отменена');
-    },
-    onError: () => msg.error('Ошибка при отмене'),
-  });
-
-  const canComplete = hasRole(
-    UserRole.HousekeepingStaff,
-    UserRole.Manager,
-    UserRole.SuperAdmin
-  );
-
-  const columns: ColumnsType<HousekeepingTaskListItemDto> = [
-    {
-      title: 'Тип',
-      dataIndex: 'type',
-      key: 'type',
-      render: (t: HousekeepingTaskType) => <HousekeepingTypeBadge type={t} />,
-    },
-    { title: 'Номер', dataIndex: 'roomNumber', key: 'roomNumber', width: 90 },
-    { title: 'Этаж', dataIndex: 'floor', key: 'floor', width: 70 },
-    {
-      title: 'Статус',
-      dataIndex: 'status',
-      key: 'status',
-      render: (s: HousekeepingStatus) => <HousekeepingStatusBadge status={s} />,
-    },
-    { title: 'Создал', dataIndex: 'requestedBy', key: 'requestedBy' },
-    {
-      title: 'Исполнитель',
-      dataIndex: 'assignedTo',
-      key: 'assignedTo',
-      render: (v) => v ?? '—',
-    },
-    {
-      title: 'Срок',
-      dataIndex: 'dueDate',
-      key: 'dueDate',
-      width: 110,
-      render: (v?: string) => (v ? dayjs(v).format('DD.MM.YYYY') : '—'),
-    },
-    {
-      title: 'Создана',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 110,
-      render: (v: string) => dayjs(v).format('DD.MM.YYYY'),
-    },
-    {
-      title: '',
-      key: 'actions',
-      width: 120,
-      render: (_, record) => {
-        const isActive =
-          record.status !== HousekeepingStatus.Completed &&
-          record.status !== HousekeepingStatus.Cancelled;
-        return (
-          <Space size={4} onClick={(e) => e.stopPropagation()}>
-            {isManagerOrAbove && isActive && (
-              <Button
-                size="small"
-                icon={<UserAddOutlined />}
-                title="Назначить"
-                onClick={() => {
-                  assignForm.resetFields();
-                  setAssignModal(record.id);
-                }}
-              />
-            )}
-            {canComplete && isActive && (
-              <Button
-                size="small"
-                icon={<CheckOutlined />}
-                type="primary"
-                ghost
-                title="Завершить"
-                onClick={() => {
-                  completeForm.resetFields();
-                  setCompleteModal(record.id);
-                }}
-              />
-            )}
-            {isManagerOrAbove && isActive && (
-              <Popconfirm
-                title="Отменить задачу?"
-                onConfirm={() => cancelMutation.mutate(record.id)}
-                okText="Да"
-                cancelText="Нет"
-              >
-                <Button
-                  size="small"
-                  icon={<CloseOutlined />}
-                  danger
-                  title="Отменить"
-                />
-              </Popconfirm>
-            )}
-          </Space>
-        );
-      },
-    },
+  const columns = [
+    { key: 'roomNumber', header: 'Номер', render: (t: HousekeepingTaskDto) => <span style={{ fontWeight: 600 }}>№{t.roomNumber}</span> },
+    { key: 'taskType', header: 'Задача', render: (t: HousekeepingTaskDto) => TASK_LABELS[t.taskType] || t.taskType },
+    { key: 'status', header: 'Статус', render: (t: HousekeepingTaskDto) => <StatusBadge status={t.status} /> },
+    { key: 'assignedToName', header: 'Исполнитель', render: (t: HousekeepingTaskDto) => t.assignedToName || <span style={{ color: '#94a3b8' }}>—</span> },
+    { key: 'scheduledFor', header: 'Запланировано', render: (t: HousekeepingTaskDto) => t.scheduledFor ? formatDate(t.scheduledFor) : <span style={{ color: '#94a3b8' }}>—</span> },
+    { key: 'createdAt', header: 'Создано', render: (t: HousekeepingTaskDto) => formatDate(t.createdAt) },
+    { key: 'actions', header: '', render: (t: HousekeepingTaskDto) => (
+      t.status !== 'Completed' && t.status !== 'Cancelled' ? (
+        <Button size="sm" variant="secondary" icon={<CheckCircle size={13} color="#22c55e" />} loading={acting === t.id} onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleComplete(t.id); }}>
+          Выполнено
+        </Button>
+      ) : null
+    )},
   ];
 
   return (
     <div>
-      {contextHolder}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          Хозяйственные задачи
-        </Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => {
-            createForm.resetFields();
-            setCreateModal(true);
-          }}
-        >
-          Новая задача
-        </Button>
-      </div>
-
-      <Space style={{ marginBottom: 16 }}>
-        <Select
-          style={{ width: 200 }}
-          options={statusOptions}
-          value={statusFilter}
-          onChange={(v) => {
-            setStatusFilter(v);
-            setPage(1);
-          }}
-        />
-      </Space>
-
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={data?.items ?? []}
-        loading={isLoading}
-        pagination={{
-          current: page,
-          pageSize: 20,
-          total: data?.totalCount ?? 0,
-          onChange: setPage,
-          showTotal: (total) => `Всего: ${total}`,
-        }}
-        size="middle"
+      <PageHeader
+        title="Уборка"
+        action={<Button icon={<Plus size={16} />} onClick={openCreate}>Новая задача</Button>}
       />
 
-      {/* Create Task Modal */}
-      <Modal
-        title="Новая задача уборки"
-        open={createModal}
-        onOk={async () => {
-          const values = await createForm.validateFields();
-          createMutation.mutate({
-            ...values,
-            requestedByUserId: user!.id,
-            dueDate: values.dueDate ? values.dueDate.toISOString() : undefined,
-          });
-        }}
-        onCancel={() => setCreateModal(false)}
-        confirmLoading={createMutation.isPending}
-        okText="Создать"
-        cancelText="Отмена"
-        width={520}
-      >
-        <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="roomId" label="Номер комнаты" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={rooms.map((r) => ({ value: r.id, label: `Номер ${r.number} (эт. ${r.floor})` }))}
-              placeholder="Выберите номер"
-            />
-          </Form.Item>
-          <Form.Item name="type" label="Тип задачи" rules={[{ required: true }]}>
-            <Select options={typeOptions} placeholder="Выберите тип" />
-          </Form.Item>
-          <Form.Item name="notes" label="Примечания">
-            <Input.TextArea rows={3} placeholder="Дополнительные инструкции" />
-          </Form.Item>
-          <Form.Item name="dueDate" label="Срок выполнения">
-            <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      <Card style={{ marginBottom: 16 }} padding={12}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {['', ...Object.values(HousekeepingStatus)].map((s) => (
+            <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }} style={{
+              padding: '6px 14px', borderRadius: 20, border: `1px solid ${statusFilter === s ? '#3b82f6' : '#e2e8f0'}`,
+              background: statusFilter === s ? '#3b82f6' : '#fff', color: statusFilter === s ? '#fff' : '#64748b',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}>
+              {s || 'Все'}
+            </button>
+          ))}
+          <Button variant="secondary" icon={<RefreshCw size={14} />} size="sm" onClick={load} style={{ marginLeft: 'auto' }}>Обновить</Button>
+        </div>
+      </Card>
 
-      {/* Assign Modal */}
-      <Modal
-        title="Назначить исполнителя"
-        open={!!assignModal}
-        onOk={async () => {
-          const values = await assignForm.validateFields();
-          if (assignModal) assignMutation.mutate({ id: assignModal, ...values });
-        }}
-        onCancel={() => setAssignModal(null)}
-        confirmLoading={assignMutation.isPending}
-        okText="Назначить"
-        cancelText="Отмена"
-      >
-        <Form form={assignForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="assignedToUserId" label="Сотрудник" rules={[{ required: true }]}>
-            <Select
-              options={staffUsers.map((u) => ({
-                value: u.id,
-                label: `${u.firstName} ${u.lastName}`,
-              }))}
-              placeholder="Выберите сотрудника"
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+      <Card padding={0}>
+        <Table columns={columns} data={items} loading={loading} emptyText="Задач нет" />
+      </Card>
+      <Pagination page={page} totalPages={totalPages} onPage={setPage} />
 
-      {/* Complete Modal */}
-      <Modal
-        title="Завершить задачу"
-        open={!!completeModal}
-        onOk={async () => {
-          const values = await completeForm.validateFields();
-          if (completeModal)
-            completeMutation.mutate({ id: completeModal, completionNotes: values.completionNotes });
-        }}
-        onCancel={() => setCompleteModal(null)}
-        confirmLoading={completeMutation.isPending}
-        okText="Завершить"
-        cancelText="Отмена"
-      >
-        <Form form={completeForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="completionNotes" label="Примечания о выполнении">
-            <Input.TextArea rows={3} placeholder="Что было сделано..." />
-          </Form.Item>
-        </Form>
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Новая задача уборки">
+        <form onSubmit={handleCreate}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 5 }}>Номер *</label>
+              <select required value={form.roomId} onChange={(e) => setForm((f) => ({ ...f, roomId: e.target.value }))} style={inputStyle}>
+                <option value="">Выберите номер</option>
+                {rooms.map((r) => <option key={r.id} value={r.id}>№{r.number} — {r.roomTypeName}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 5 }}>Тип задачи *</label>
+              <select value={form.taskType} onChange={(e) => setForm((f) => ({ ...f, taskType: e.target.value }))} style={inputStyle}>
+                {Object.values(HousekeepingTaskType).map((t) => <option key={t} value={t}>{TASK_LABELS[t] || t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 5 }}>Исполнитель</label>
+              <select value={form.assignedToId} onChange={(e) => setForm((f) => ({ ...f, assignedToId: e.target.value }))} style={inputStyle}>
+                <option value="">Не назначен</option>
+                {staff.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 5 }}>Запланировано</label>
+              <input type="date" value={form.scheduledFor} onChange={(e) => setForm((f) => ({ ...f, scheduledFor: e.target.value }))} style={inputStyle} />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 5 }}>Примечания</label>
+              <textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} style={{ ...inputStyle, height: 64, resize: 'vertical' }} placeholder="Особые указания..." />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <Button variant="secondary" type="button" onClick={() => setCreateOpen(false)}>Отмена</Button>
+            <Button type="submit" loading={creating}>Создать задачу</Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

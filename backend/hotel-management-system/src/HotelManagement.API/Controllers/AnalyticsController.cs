@@ -1,4 +1,6 @@
-using HotelManagement.Application.Common.Interfaces.Queries;
+﻿using HotelManagement.Application.Common.Interfaces.Queries;
+using HotelManagement.Application.Features.Analytics.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,9 +12,13 @@ namespace HotelManagement.API.Controllers;
 public class AnalyticsController : ControllerBase
 {
     private readonly IAnalyticsQueryService _analyticsService;
+    private readonly IMediator _mediator;
 
-    public AnalyticsController(IAnalyticsQueryService analyticsService)
-        => _analyticsService = analyticsService;
+    public AnalyticsController(IAnalyticsQueryService analyticsService, IMediator mediator)
+    {
+        _analyticsService = analyticsService;
+        _mediator = mediator;
+    }
 
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboard(CancellationToken ct)
@@ -40,4 +46,15 @@ public class AnalyticsController : ControllerBase
     [HttpGet("top-guests")]
     public async Task<IActionResult> GetTopGuests([FromQuery] int top = 10, CancellationToken ct = default)
         => Ok(await _analyticsService.GetTopGuestsAsync(top, ct));
+
+    [HttpGet("kpi")]
+    public async Task<IActionResult> GetKpi(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        CancellationToken ct = default)
+    {
+        var dateFrom = from ?? DateTime.UtcNow.AddMonths(-1);
+        var dateTo   = to   ?? DateTime.UtcNow;
+        return Ok(await _mediator.Send(new GetKpiQuery(dateFrom, dateTo), ct));
+    }
 }

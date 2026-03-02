@@ -1,3 +1,4 @@
+using HotelManagement.Application.Common;
 using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Repositories;
 using HotelManagement.Domain.Entities;
@@ -17,17 +18,20 @@ public class CheckInCommandHandler : IRequestHandler<CheckInCommand>
     private readonly IRoomRepository _roomRepository;
     private readonly IEmailService _emailService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICacheService _cache;
 
     public CheckInCommandHandler(
         IBookingRepository bookingRepository,
         IRoomRepository roomRepository,
         IEmailService emailService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ICacheService cache)
     {
         _bookingRepository = bookingRepository;
         _roomRepository = roomRepository;
         _emailService = emailService;
         _unitOfWork = unitOfWork;
+        _cache = cache;
     }
 
     public async Task Handle(CheckInCommand request, CancellationToken cancellationToken)
@@ -46,6 +50,7 @@ public class CheckInCommandHandler : IRequestHandler<CheckInCommand>
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _cache.RemoveAsync(CacheKeys.DashboardStats);
 
         // Отправка email о заселении
         var bookingWithDetails = await _bookingRepository.GetByIdWithDetailsAsync(request.Id, cancellationToken);
@@ -69,17 +74,20 @@ public class CheckInByQrCommandHandler : IRequestHandler<CheckInByQrCommand>
     private readonly IRoomRepository _roomRepository;
     private readonly IEmailService _emailService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICacheService _cache;
 
     public CheckInByQrCommandHandler(
         IBookingRepository bookingRepository,
         IRoomRepository roomRepository,
         IEmailService emailService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ICacheService cache)
     {
         _bookingRepository = bookingRepository;
         _roomRepository = roomRepository;
         _emailService = emailService;
         _unitOfWork = unitOfWork;
+        _cache = cache;
     }
 
     public async Task Handle(CheckInByQrCommand request, CancellationToken cancellationToken)
@@ -98,6 +106,7 @@ public class CheckInByQrCommandHandler : IRequestHandler<CheckInByQrCommand>
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _cache.RemoveAsync(CacheKeys.DashboardStats);
 
         var bookingWithDetails = await _bookingRepository.GetByIdWithDetailsAsync(booking.Id, cancellationToken);
         if (bookingWithDetails?.Guest != null && room != null)

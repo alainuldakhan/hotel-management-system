@@ -1,30 +1,21 @@
 import { UserRole } from '../types/enums';
+import { useAuthStore } from '../store/authStore';
 
-export const STAFF_ROLES = [
-  UserRole.Receptionist,
-  UserRole.HousekeepingStaff,
-  UserRole.MaintenanceStaff,
-  UserRole.Manager,
-  UserRole.SuperAdmin,
-];
+export const usePermissions = () => {
+  const { user, hasRole } = useAuthStore();
 
-export const MANAGER_ROLES = [UserRole.Manager, UserRole.SuperAdmin];
-
-export const RECEPTIONIST_ROLES = [
-  UserRole.Receptionist,
-  UserRole.Manager,
-  UserRole.SuperAdmin,
-];
-
-export function hasAnyRole(userRole: UserRole, allowed: UserRole[]): boolean {
-  return allowed.includes(userRole);
-}
-
-export const roleLabels: Record<UserRole, string> = {
-  [UserRole.Guest]: 'Гость',
-  [UserRole.Receptionist]: 'Рецепционист',
-  [UserRole.HousekeepingStaff]: 'Горничная',
-  [UserRole.MaintenanceStaff]: 'Технический персонал',
-  [UserRole.Manager]: 'Менеджер',
-  [UserRole.SuperAdmin]: 'Администратор',
+  return {
+    canManageBookings: hasRole(UserRole.Receptionist, UserRole.Manager, UserRole.SuperAdmin),
+    canManageRooms: hasRole(UserRole.Manager, UserRole.SuperAdmin),
+    canManageUsers: hasRole(UserRole.Manager, UserRole.SuperAdmin),
+    canViewAnalytics: hasRole(UserRole.Manager, UserRole.SuperAdmin),
+    canManageMaintenance: hasRole(UserRole.MaintenanceStaff, UserRole.Manager, UserRole.SuperAdmin),
+    canManageHousekeeping: hasRole(UserRole.HousekeepingStaff, UserRole.Manager, UserRole.SuperAdmin),
+    canManageServices: hasRole(UserRole.Manager, UserRole.SuperAdmin),
+    canManageInvoices: hasRole(UserRole.Receptionist, UserRole.Manager, UserRole.SuperAdmin),
+    canViewReports: hasRole(UserRole.Manager, UserRole.SuperAdmin),
+    isGuest: user?.role === UserRole.Guest,
+    isAdmin: hasRole(UserRole.Manager, UserRole.SuperAdmin),
+    user,
+  };
 };

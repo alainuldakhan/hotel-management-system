@@ -1,373 +1,130 @@
-import { DollarOutlined, FilePdfOutlined, PlusOutlined } from '@ant-design/icons';
-import {
-  Button,
-  Form,
-  Input,
-  Modal,
-  Select,
-  Space,
-  Spin,
-  Table,
-  Tag,
-  Typography,
-  message,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import dayjs from 'dayjs';
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { RefreshCw, DollarSign } from 'lucide-react';
 import { invoicesApi } from '../../api/invoices';
-import { bookingsApi } from '../../api/bookings';
-import { reportsApi } from '../../api/reports';
-import { BookingStatusBadge, PaymentStatusBadge } from '../../components/common/StatusBadge';
-import type { BookingListItemDto, InvoiceDto } from '../../types/api';
-import { BookingStatus, PaymentStatus } from '../../types/enums';
+import type { InvoiceDto } from '../../types/api';
+import { PaymentStatus } from '../../types/enums';
+import { formatCurrency, formatDate } from '../../utils/format';
+import StatusBadge from '../../components/common/StatusBadge';
+import PageHeader from '../../components/common/PageHeader';
+import Table from '../../components/common/Table';
+import Pagination from '../../components/common/Pagination';
+import Modal from '../../components/common/Modal';
+import Button from '../../components/common/Button';
+import Card from '../../components/common/Card';
 
-const { Title } = Typography;
+const PAGE_SIZE = 15;
 
-const PAYMENT_METHODS = ['Наличные', 'Банковская карта', 'Онлайн-оплата', 'Банковский перевод'];
-
-const STATUS_LABELS: Record<string, string> = {
-  Pending: 'Ожидает',
-  Paid: 'Оплачен',
-  PartiallyPaid: 'Частично',
-  Refunded: 'Возврат',
-  Failed: 'Ошибка',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  Pending: 'orange',
-  Paid: 'green',
-  PartiallyPaid: 'gold',
-  Refunded: 'cyan',
-  Failed: 'red',
-};
-
-// ── Expandable row: счета конкретного бронирования ──────────────────────────
-
-function BookingInvoices({
-  bookingId,
-  onMarkPaid,
-  onDownloadPdf,
-  onGenerateInvoice,
-}: {
-  bookingId: string;
-  onMarkPaid: (invoice: InvoiceDto) => void;
-  onDownloadPdf: (invoice: InvoiceDto) => void;
-  onGenerateInvoice: (bookingId: string) => void;
-}) {
-  const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ['invoices', 'booking', bookingId],
-    queryFn: () => invoicesApi.getByBooking(bookingId),
-  });
-
-  const invoiceColumns: ColumnsType<InvoiceDto> = [
-    { title: '№ счёта', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 160 },
-    {
-      title: 'Сумма',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (v: number) => `${v.toLocaleString()} ₸`,
-    },
-    {
-      title: 'Статус',
-      dataIndex: 'status',
-      key: 'status',
-      render: (s: PaymentStatus) => (
-        <Tag color={STATUS_COLORS[s]}>{STATUS_LABELS[s] ?? s}</Tag>
-      ),
-    },
-    {
-      title: 'Метод оплаты',
-      dataIndex: 'paymentMethod',
-      key: 'paymentMethod',
-      render: (v) => v ?? '—',
-    },
-    {
-      title: 'Дата оплаты',
-      dataIndex: 'paidAt',
-      key: 'paidAt',
-      render: (v) => (v ? dayjs(v).format('DD.MM.YYYY') : '—'),
-    },
-    {
-      title: 'Создан',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (v: string) => dayjs(v).format('DD.MM.YYYY'),
-    },
-    {
-      title: '',
-      key: 'actions',
-      width: 170,
-      render: (_, record) => (
-        <Space size={4}>
-          {record.status === PaymentStatus.Pending && (
-            <Button
-              size="small"
-              icon={<DollarOutlined />}
-              type="primary"
-              onClick={() => onMarkPaid(record)}
-            >
-              Оплачен
-            </Button>
-          )}
-          <Button
-            size="small"
-            icon={<FilePdfOutlined />}
-            onClick={() => onDownloadPdf(record)}
-          >
-            PDF
-          </Button>
-        </Space>
-      ),
-    },
-  ];
-
-  if (isLoading) {
-    return (
-      <div style={{ padding: '16px 24px' }}>
-        <Spin size="small" />
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ background: '#fafafa', padding: '12px 16px', borderRadius: 8 }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 10,
-        }}
-      >
-        <span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>
-          Счета{invoices.length > 0 ? ` (${invoices.length})` : ''}
-        </span>
-        <Button
-          size="small"
-          icon={<PlusOutlined />}
-          onClick={() => onGenerateInvoice(bookingId)}
-        >
-          Создать счёт
-        </Button>
-      </div>
-
-      {invoices.length === 0 ? (
-        <div style={{ color: '#999', fontSize: 13, padding: '6px 0' }}>Счетов нет</div>
-      ) : (
-        <Table
-          rowKey="id"
-          columns={invoiceColumns}
-          dataSource={invoices}
-          pagination={false}
-          size="small"
-        />
-      )}
-    </div>
-  );
-}
-
-// ── Main Page ────────────────────────────────────────────────────────────────
-
-const BOOKING_STATUS_OPTIONS = [
-  { value: '', label: 'Все статусы' },
-  { value: BookingStatus.Confirmed, label: 'Подтверждено' },
-  { value: BookingStatus.CheckedIn, label: 'Заселён' },
-  { value: BookingStatus.CheckedOut, label: 'Выселен' },
-];
-
-export function InvoicesPage() {
-  const [msg, contextHolder] = message.useMessage();
-  const qc = useQueryClient();
-
+export default function InvoicesPage() {
+  const [items, setItems] = useState<InvoiceDto[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [payItem, setPayItem] = useState<InvoiceDto | null>(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [paying, setPaying] = useState(false);
 
-  const [markPaidModal, setMarkPaidModal] = useState<InvoiceDto | null>(null);
-  const [generateBookingId, setGenerateBookingId] = useState<string | null>(null);
-
-  const [markForm] = Form.useForm();
-  const [generateForm] = Form.useForm();
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['bookings-for-invoices', page, search, statusFilter],
-    queryFn: () =>
-      bookingsApi.getAll({
-        page,
-        pageSize: 20,
-        searchTerm: search || undefined,
-        status: statusFilter || undefined,
-      }),
-  });
-
-  const generateMutation = useMutation({
-    mutationFn: (values: { notes?: string }) =>
-      invoicesApi.generate(generateBookingId!, values.notes),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['invoices', 'booking', generateBookingId] });
-      setGenerateBookingId(null);
-      generateForm.resetFields();
-      msg.success('Счёт создан');
-    },
-    onError: () => msg.error('Ошибка при создании счёта'),
-  });
-
-  const markPaidMutation = useMutation({
-    mutationFn: (values: { paymentMethod: string; notes?: string }) =>
-      invoicesApi.markPaid(markPaidModal!.id, values.paymentMethod, values.notes),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['invoices', 'booking', markPaidModal?.bookingId] });
-      setMarkPaidModal(null);
-      markForm.resetFields();
-      msg.success('Счёт отмечен оплаченным');
-    },
-    onError: () => msg.error('Ошибка при обновлении'),
-  });
-
-  const handleDownloadPdf = async (invoice: InvoiceDto) => {
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      await reportsApi.downloadInvoicePdf(invoice.id, invoice.invoiceNumber);
-    } catch {
-      msg.error('Ошибка скачивания PDF');
-    }
+      const { data } = await invoicesApi.getAll({ page, pageSize: PAGE_SIZE, status: statusFilter || undefined });
+      setItems(data.items);
+      setTotalPages(data.totalPages);
+    } finally { setLoading(false); }
+  }, [page, statusFilter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openPay = (inv: InvoiceDto) => {
+    setPayItem(inv);
+    setPayAmount(String(inv.remainingAmount));
   };
 
-  const columns: ColumnsType<BookingListItemDto> = [
-    { title: 'Номер', dataIndex: 'roomNumber', key: 'roomNumber', width: 90 },
-    { title: 'Гость', dataIndex: 'guestFullName', key: 'guestFullName' },
-    {
-      title: 'Заезд',
-      dataIndex: 'checkInDate',
-      key: 'checkInDate',
-      width: 110,
-      render: (v: string) => dayjs(v).format('DD.MM.YYYY'),
-    },
-    {
-      title: 'Выезд',
-      dataIndex: 'checkOutDate',
-      key: 'checkOutDate',
-      width: 110,
-      render: (v: string) => dayjs(v).format('DD.MM.YYYY'),
-    },
-    {
-      title: 'Статус',
-      dataIndex: 'status',
-      key: 'status',
-      render: (s: BookingStatus) => <BookingStatusBadge status={s} />,
-    },
-    {
-      title: 'Оплата',
-      dataIndex: 'paymentStatus',
-      key: 'paymentStatus',
-      render: (s) => <PaymentStatusBadge status={s} />,
-    },
-    {
-      title: 'Сумма',
-      dataIndex: 'totalAmount',
-      key: 'totalAmount',
-      render: (v: number) => `${v.toLocaleString()} ₸`,
-    },
+  const handlePay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payItem) return;
+    setPaying(true);
+    try { await invoicesApi.markPaid(payItem.id, parseFloat(payAmount)); setPayItem(null); load(); }
+    finally { setPaying(false); }
+  };
+
+  const columns = [
+    { key: 'invoiceNumber', header: 'Номер счёта', render: (i: InvoiceDto) => <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13 }}>{i.invoiceNumber}</span> },
+    { key: 'guestName', header: 'Гость', render: (i: InvoiceDto) => <span style={{ fontWeight: 600 }}>{i.guestName}</span> },
+    { key: 'roomNumber', header: 'Номер', render: (i: InvoiceDto) => `№${i.roomNumber}` },
+    { key: 'totalAmount', header: 'Итого', render: (i: InvoiceDto) => <span style={{ fontWeight: 700 }}>{formatCurrency(i.totalAmount)}</span> },
+    { key: 'paidAmount', header: 'Оплачено', render: (i: InvoiceDto) => <span style={{ color: '#22c55e', fontWeight: 600 }}>{formatCurrency(i.paidAmount)}</span> },
+    { key: 'remainingAmount', header: 'Остаток', render: (i: InvoiceDto) => (
+      <span style={{ color: i.remainingAmount > 0 ? '#ef4444' : '#22c55e', fontWeight: 600 }}>{formatCurrency(i.remainingAmount)}</span>
+    )},
+    { key: 'paymentStatus', header: 'Статус', render: (i: InvoiceDto) => <StatusBadge status={i.paymentStatus} /> },
+    { key: 'issuedAt', header: 'Дата', render: (i: InvoiceDto) => formatDate(i.issuedAt) },
+    { key: 'actions', header: '', render: (i: InvoiceDto) => (
+      i.paymentStatus !== 'Paid' ? (
+        <Button size="sm" icon={<DollarSign size={13} />} onClick={(e: React.MouseEvent) => { e.stopPropagation(); openPay(i); }}>
+          Оплатить
+        </Button>
+      ) : null
+    )},
   ];
 
   return (
     <div>
-      {contextHolder}
+      <PageHeader title="Счета" subtitle="Управление платежами и задолженностями" />
 
-      <Title level={4} style={{ margin: '0 0 16px' }}>
-        Счета
-      </Title>
+      <Card style={{ marginBottom: 16 }} padding={12}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {['', ...Object.values(PaymentStatus)].map((s) => (
+            <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }} style={{
+              padding: '6px 14px', borderRadius: 20, border: `1px solid ${statusFilter === s ? '#3b82f6' : '#e2e8f0'}`,
+              background: statusFilter === s ? '#3b82f6' : '#fff', color: statusFilter === s ? '#fff' : '#64748b',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}>
+              {s || 'Все'}
+            </button>
+          ))}
+          <Button variant="secondary" icon={<RefreshCw size={14} />} size="sm" onClick={load} style={{ marginLeft: 'auto' }}>Обновить</Button>
+        </div>
+      </Card>
 
-      <Space style={{ marginBottom: 16 }}>
-        <Input.Search
-          placeholder="Поиск по гостю или email"
-          allowClear
-          style={{ width: 280 }}
-          onSearch={setSearch}
-          onChange={(e) => !e.target.value && setSearch('')}
-        />
-        <Select
-          style={{ width: 180 }}
-          options={BOOKING_STATUS_OPTIONS}
-          value={statusFilter}
-          onChange={(v) => {
-            setStatusFilter(v);
-            setPage(1);
-          }}
-        />
-      </Space>
+      <Card padding={0}>
+        <Table columns={columns} data={items} loading={loading} emptyText="Счета не найдены" />
+      </Card>
+      <Pagination page={page} totalPages={totalPages} onPage={setPage} />
 
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={data?.items ?? []}
-        loading={isLoading}
-        pagination={{
-          current: page,
-          pageSize: 20,
-          total: data?.totalCount ?? 0,
-          onChange: setPage,
-          showTotal: (total) => `Всего: ${total}`,
-        }}
-        size="middle"
-        expandable={{
-          expandedRowRender: (record) => (
-            <BookingInvoices
-              bookingId={record.id}
-              onMarkPaid={(invoice) => {
-                setMarkPaidModal(invoice);
-                markForm.resetFields();
-              }}
-              onDownloadPdf={handleDownloadPdf}
-              onGenerateInvoice={(bookingId) => {
-                generateForm.resetFields();
-                setGenerateBookingId(bookingId);
-              }}
+      <Modal open={!!payItem} onClose={() => setPayItem(null)} title={`Оплата: ${payItem?.invoiceNumber}`}>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
+            <span style={{ color: '#64748b' }}>Гость</span>
+            <span style={{ fontWeight: 600 }}>{payItem?.guestName}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
+            <span style={{ color: '#64748b' }}>Итого</span>
+            <span style={{ fontWeight: 600 }}>{formatCurrency(payItem?.totalAmount ?? 0)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
+            <span style={{ color: '#64748b' }}>Оплачено</span>
+            <span style={{ fontWeight: 600, color: '#22c55e' }}>{formatCurrency(payItem?.paidAmount ?? 0)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #e2e8f0', fontSize: 14 }}>
+            <span style={{ fontWeight: 700 }}>Остаток</span>
+            <span style={{ fontWeight: 800, color: '#ef4444' }}>{formatCurrency(payItem?.remainingAmount ?? 0)}</span>
+          </div>
+        </div>
+        <form onSubmit={handlePay}>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 6 }}>Сумма к оплате *</label>
+            <input
+              type="number" required min={0.01} step={0.01} max={payItem?.remainingAmount}
+              value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
+              style={{ width: '100%', padding: '10px 14px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, fontWeight: 700, outline: 'none', color: '#1e293b' }}
             />
-          ),
-          rowExpandable: () => true,
-        }}
-      />
-
-      {/* Generate Invoice Modal */}
-      <Modal
-        title="Создать счёт"
-        open={!!generateBookingId}
-        onOk={() => generateForm.validateFields().then((v) => generateMutation.mutate(v))}
-        onCancel={() => setGenerateBookingId(null)}
-        confirmLoading={generateMutation.isPending}
-        okText="Создать"
-        cancelText="Отмена"
-      >
-        <Form form={generateForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="notes" label="Заметки (необязательно)">
-            <Input.TextArea rows={3} />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Mark Paid Modal */}
-      <Modal
-        title={`Оплата счёта: ${markPaidModal?.invoiceNumber}`}
-        open={!!markPaidModal}
-        onOk={() => markForm.validateFields().then((v) => markPaidMutation.mutate(v))}
-        onCancel={() => setMarkPaidModal(null)}
-        confirmLoading={markPaidMutation.isPending}
-        okText="Подтвердить"
-        cancelText="Отмена"
-      >
-        <Form form={markForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="paymentMethod" label="Способ оплаты" rules={[{ required: true }]}>
-            <Select
-              options={PAYMENT_METHODS.map((m) => ({ value: m, label: m }))}
-              placeholder="Выберите способ"
-            />
-          </Form.Item>
-          <Form.Item name="notes" label="Заметки">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-        </Form>
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <Button variant="secondary" type="button" onClick={() => setPayItem(null)}>Отмена</Button>
+            <Button type="submit" loading={paying} icon={<DollarSign size={15} />}>Принять оплату</Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

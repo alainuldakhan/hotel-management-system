@@ -1,3 +1,5 @@
+using HotelManagement.Application.Common;
+using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Repositories;
 using HotelManagement.Domain.Entities;
 using HotelManagement.Domain.Exceptions;
@@ -12,11 +14,16 @@ public class DeletePricingRuleCommandHandler : IRequestHandler<DeletePricingRule
 {
     private readonly IPricingRuleRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICacheService _cache;
 
-    public DeletePricingRuleCommandHandler(IPricingRuleRepository repository, IUnitOfWork unitOfWork)
+    public DeletePricingRuleCommandHandler(
+        IPricingRuleRepository repository,
+        IUnitOfWork unitOfWork,
+        ICacheService cache)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
+        _cache = cache;
     }
 
     public async Task Handle(DeletePricingRuleCommand request, CancellationToken cancellationToken)
@@ -27,5 +34,7 @@ public class DeletePricingRuleCommandHandler : IRequestHandler<DeletePricingRule
         rule.Deactivate();
         _repository.Update(rule);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await _cache.RemoveAsync(CacheKeys.PricingRulesAll);
     }
 }

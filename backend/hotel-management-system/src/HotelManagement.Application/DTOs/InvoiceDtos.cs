@@ -54,3 +54,12 @@ public record DailyOccupancyItemDto(
     string Status,
     decimal TotalAmount
 );
+
+/// <summary>Фильтр для пагинированного списка инвойсов</summary>
+public record InvoiceFilterDto(
+    string? Status = null,
+    DateTime? From = null,
+    DateTime? To = null,
+    int Page = 1,
+    int PageSize = 20
+);

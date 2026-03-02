@@ -1,21 +1,10 @@
-import apiClient from './client';
-import type { PagedResult, ReviewDto, RoomTypeRatingDto } from '../types/api';
-
-export interface CreateReviewPayload {
-  bookingId: string;
-  rating: number;
-  comment?: string;
-}
+import client from './client';
+import type { ReviewDto, PagedResult } from '../types/api';
 
 export const reviewsApi = {
-  getAll: (roomTypeId?: string, page = 1, pageSize = 20) =>
-    apiClient
-      .get<PagedResult<ReviewDto>>('/reviews', { params: { roomTypeId, page, pageSize } })
-      .then((r) => r.data),
-
-  getRatings: () =>
-    apiClient.get<RoomTypeRatingDto[]>('/reviews/ratings').then((r) => r.data),
-
-  create: (payload: CreateReviewPayload) =>
-    apiClient.post<{ id: string }>('/reviews', payload).then((r) => r.data),
+  getAll: (params?: { page?: number; pageSize?: number }) =>
+    client.get<PagedResult<ReviewDto>>('/reviews', { params }),
+  create: (data: { bookingId: string; rating: number; comment?: string }) =>
+    client.post<ReviewDto>('/reviews', data),
+  delete: (id: string) => client.delete(`/reviews/${id}`),
 };

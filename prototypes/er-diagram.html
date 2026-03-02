@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roomy — ER Diagram</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    background: #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px;
+  }
+
+  /* ---- Diagram canvas ---- */
+  .diagram {
+    position: relative;
+    width: 1380px;
+    height: 920px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.06);
+    overflow: hidden;
+  }
+
+  .diagram > svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ---- Entity box ---- */
+  .entity {
+    position: absolute;
+    background: #fff;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    overflow: hidden;
+    z-index: 2;
+    box-shadow: 0 2px 10px rgba(0,0,0,.07);
+  }
+
+  .entity-header {
+    padding: 9px 14px;
+    font-size: .8rem;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  .entity-divider {
+    height: 1px;
+    background: rgba(255,255,255,.2);
+  }
+
+  .attr-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    font-size: .73rem;
+    color: #334155;
+    border-top: 1px solid #f1f5f9;
+    line-height: 1;
+    min-height: 26px;
+  }
+
+  .attr-row.pk {
+    font-weight: 700;
+    background: #fffbeb;
+  }
+
+  .attr-row.fk {
+    color: #1d4ed8;
+  }
+
+  .attr-name {
+    flex: 1;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: .7rem;
+  }
+
+  .attr-row.pk .attr-name {
+    text-decoration: underline;
+    text-decoration-color: #94a3b8;
+    text-underline-offset: 2px;
+  }
+
+  .attr-type {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: .62rem;
+    color: #94a3b8;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .badge {
+    font-size: .57rem;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .badge-pk { background: #fef3c7; color: #92400e; }
+  .badge-fk { background: #dbeafe; color: #1e40af; }
+  .badge-uk { background: #f3e8ff; color: #6b21a8; }
+
+  /* ---- Entity color themes ---- */
+  .entity.users        .entity-header { background: #1e3a5f; }
+  .entity.guests       .entity-header { background: #1d4ed8; }
+  .entity.bookings     .entity-header { background: #6d28d9; }
+  .entity.payments     .entity-header { background: #0369a1; }
+  .entity.rooms        .entity-header { background: #065f46; }
+  .entity.categories   .entity-header { background: #0d9488; }
+  .entity.tariffs      .entity-header { background: #0f766e; }
+  .entity.reviews      .entity-header { background: #b45309; }
+  .entity.notifications .entity-header { background: #be185d; }
+
+  .entity.users        { border-color: #1e3a5f; }
+  .entity.guests       { border-color: #1d4ed8; }
+  .entity.bookings     { border-color: #6d28d9; }
+  .entity.payments     { border-color: #0369a1; }
+  .entity.rooms        { border-color: #065f46; }
+  .entity.categories   { border-color: #0d9488; }
+  .entity.tariffs      { border-color: #0f766e; }
+  .entity.reviews      { border-color: #b45309; }
+  .entity.notifications { border-color: #be185d; }
+
+  /* ---- SVG connector styles ---- */
+  .conn       { stroke: #64748b; stroke-width: 1.8; fill: none; }
+  .conn-label { font-family: 'Inter', sans-serif; font-size: 11px; fill: #475569; font-weight: 600; }
+  .conn-bg    { fill: #fff; }
+
+  /* ---- Legend ---- */
+  .legend {
+    position: absolute;
+    bottom: 16px;
+    right: 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: .74rem;
+    color: #475569;
+    min-width: 210px;
+  }
+
+  .legend h4 {
+    font-size: .75rem;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+  }
+
+  .legend-line {
+    width: 36px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .legend-line svg { width: 36px; height: 16px; }
+
+  .legend-badge-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  /* ---- Caption ---- */
+  .caption {
+    margin-top: 18px;
+    font-size: 1rem;
+    color: #475569;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<div class="diagram" id="diagram">
+
+  <!-- SVG connector layer -->
+  <svg id="connectors">
+    <defs>
+      <!-- Arrow for FK direction -->
+      <marker id="fk-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <path d="M0,1 L7,4 L0,7 Z" fill="#64748b"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <!-- ===================== ENTITIES ===================== -->
+
+  <!-- users -->
+  <div class="entity users" id="e-users" style="left:25px;top:40px;width:215px">
+    <div class="entity-header">users</div>
+    <div class="attr-row pk">
+      <span class="badge badge-pk">PK</span>
+      <span class="attr-name">id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">email</span>
+      <span class="attr-type">varchar</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">password_hash</span>
+      <span class="attr-type">varchar</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">role</span>
+      <span class="attr-type">enum</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">created_at</span>
+      <span class="attr-type">timestamp</span>
+    </div>
+  </div>
+
+  <!-- guests -->
+  <div class="entity guests" id="e-guests" style="left:300px;top:40px;width:220px">
+    <div class="entity-header">guests</div>
+    <div class="attr-row pk">
+      <span class="badge badge-pk">PK</span>
+      <span class="attr-name">id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row fk">
+      <span class="badge badge-fk">FK</span>
+      <span class="attr-name">user_id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">first_name</span>
+      <span class="attr-type">varchar</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">last_name</span>
+      <span class="attr-type">varchar</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">phone</span>
+      <span class="attr-type">varchar</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">passport_number</span>
+      <span class="attr-type">varchar</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">created_at</span>
+      <span class="attr-type">timestamp</span>
+    </div>
+  </div>
+
+  <!-- bookings -->
+  <div class="entity bookings" id="e-bookings" style="left:645px;top:40px;width:230px">
+    <div class="entity-header">bookings</div>
+    <div class="attr-row pk">
+      <span class="badge badge-pk">PK</span>
+      <span class="attr-name">id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row fk">
+      <span class="badge badge-fk">FK</span>
+      <span class="attr-name">guest_id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row fk">
+      <span class="badge badge-fk">FK</span>
+      <span class="attr-name">room_id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">check_in_date</span>
+      <span class="attr-type">date</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">check_out_date</span>
+      <span class="attr-type">date</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">status</span>
+      <span class="attr-type">enum</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">total_amount</span>
+      <span class="attr-type">decimal</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">redis_lock_key</span>
+      <span class="attr-type">varchar</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">created_at</span>
+      <span class="attr-type">timestamp</span>
+    </div>
+  </div>
+
+  <!-- payments -->
+  <div class="entity payments" id="e-payments" style="left:1080px;top:40px;width:235px">
+    <div class="entity-header">payments</div>
+    <div class="attr-row pk">
+      <span class="badge badge-pk">PK</span>
+      <span class="attr-name">id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row fk">
+      <span class="badge badge-fk">FK</span>
+      <span class="attr-name">booking_id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">amount</span>
+      <span class="attr-type">decimal</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">status</span>
+      <span class="attr-type">enum</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">gateway_tx_id</span>
+      <span class="attr-type">varchar</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">paid_at</span>
+      <span class="attr-type">timestamp</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">created_at</span>
+      <span class="attr-type">timestamp</span>
+    </div>
+  </div>
+
+  <!-- room_categories -->
+  <div class="entity categories" id="e-categories" style="left:25px;top:455px;width:215px">
+    <div class="entity-header">room_categories</div>
+    <div class="attr-row pk">
+      <span class="badge badge-pk">PK</span>
+      <span class="attr-name">id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">name</span>
+      <span class="attr-type">varchar</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">base_price</span>
+      <span class="attr-type">decimal</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">capacity</span>
+      <span class="attr-type">int</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">area_sqm</span>
+      <span class="attr-type">int</span>
+    </div>
+  </div>
+
+  <!-- rooms -->
+  <div class="entity rooms" id="e-rooms" style="left:300px;top:455px;width:220px">
+    <div class="entity-header">rooms</div>
+    <div class="attr-row pk">
+      <span class="badge badge-pk">PK</span>
+      <span class="attr-name">id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row fk">
+      <span class="badge badge-fk">FK</span>
+      <span class="attr-name">category_id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">number</span>
+      <span class="attr-type">varchar</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">floor</span>
+      <span class="attr-type">int</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">status</span>
+      <span class="attr-type">enum</span>
+    </div>
+  </div>
+
+  <!-- tariffs -->
+  <div class="entity tariffs" id="e-tariffs" style="left:25px;top:695px;width:215px">
+    <div class="entity-header">tariffs</div>
+    <div class="attr-row pk">
+      <span class="badge badge-pk">PK</span>
+      <span class="attr-name">id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row fk">
+      <span class="badge badge-fk">FK</span>
+      <span class="attr-name">category_id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">name</span>
+      <span class="attr-type">varchar</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">price_per_night</span>
+      <span class="attr-type">decimal</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">valid_from</span>
+      <span class="attr-type">date</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">valid_to</span>
+      <span class="attr-type">date</span>
+    </div>
+  </div>
+
+  <!-- reviews -->
+  <div class="entity reviews" id="e-reviews" style="left:645px;top:480px;width:230px">
+    <div class="entity-header">reviews</div>
+    <div class="attr-row pk">
+      <span class="badge badge-pk">PK</span>
+      <span class="attr-name">id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row fk">
+      <span class="badge badge-fk">FK</span>
+      <span class="attr-name">booking_id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row fk">
+      <span class="badge badge-fk">FK</span>
+      <span class="attr-name">guest_id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">rating</span>
+      <span class="attr-type">int(1-5)</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">comment</span>
+      <span class="attr-type">text</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">created_at</span>
+      <span class="attr-type">timestamp</span>
+    </div>
+  </div>
+
+  <!-- notifications -->
+  <div class="entity notifications" id="e-notifications" style="left:1080px;top:400px;width:235px">
+    <div class="entity-header">notifications</div>
+    <div class="attr-row pk">
+      <span class="badge badge-pk">PK</span>
+      <span class="attr-name">id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row fk">
+      <span class="badge badge-fk">FK</span>
+      <span class="attr-name">booking_id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row fk">
+      <span class="badge badge-fk">FK</span>
+      <span class="attr-name">guest_id</span>
+      <span class="attr-type">uuid</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">type</span>
+      <span class="attr-type">enum</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">status</span>
+      <span class="attr-type">enum</span>
+    </div>
+    <div class="attr-row">
+      <span class="attr-name">sent_at</span>
+      <span class="attr-type">timestamp</span>
+    </div>
+  </div>
+
+  <!-- ===================== LEGEND ===================== -->
+  <div class="legend">
+    <h4>Legend</h4>
+    <div class="legend-item">
+      <div class="legend-line">
+        <svg viewBox="0 0 36 16"><line x1="0" y1="8" x2="36" y2="8" stroke="#64748b" stroke-width="1.8"/><line x1="28" y1="3" x2="36" y2="8" stroke="#64748b" stroke-width="1.8"/><line x1="28" y1="13" x2="36" y2="8" stroke="#64748b" stroke-width="1.8"/></svg>
+      </div>
+      Many (N) side
+    </div>
+    <div class="legend-item">
+      <div class="legend-line">
+        <svg viewBox="0 0 36 16"><line x1="0" y1="8" x2="36" y2="8" stroke="#64748b" stroke-width="1.8"/><line x1="8" y1="3" x2="8" y2="13" stroke="#64748b" stroke-width="2"/></svg>
+      </div>
+      One (1) side
+    </div>
+    <div class="legend-badge-row">
+      <span class="badge badge-pk">PK</span> Primary Key &nbsp;
+      <span class="badge badge-fk">FK</span> Foreign Key
+    </div>
+  </div>
+
+</div>
+
+<p class="caption">Figure 2.3 — Entity-Relationship Diagram of the Hotel AIS Database</p>
+
+<script>
+(function () {
+  const svg = document.getElementById('connectors');
+  const root = document.getElementById('diagram');
+
+  /* --- geometry helpers --- */
+  function rect(id) {
+    const el = document.getElementById(id);
+    const box = el.getBoundingClientRect();
+    const p = root.getBoundingClientRect();
+    return {
+      cx: box.left - p.left + box.width / 2,
+      cy: box.top  - p.top  + box.height / 2,
+      l:  box.left - p.left,
+      r:  box.left - p.left + box.width,
+      t:  box.top  - p.top,
+      b:  box.top  - p.top  + box.height,
+      w:  box.width,
+      h:  box.height
+    };
+  }
+
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  }
+
+  /* Draw a polyline through waypoints */
+  function polyline(points, dashed = false) {
+    const pts = points.map(p => `${p[0]},${p[1]}`).join(' ');
+    const el = svgEl('polyline', {
+      points: pts,
+      class: 'conn',
+      fill: 'none',
+      'stroke-dasharray': dashed ? '6,4' : 'none'
+    });
+    svg.appendChild(el);
+    return el;
+  }
+
+  /* Draw a "one" tick perpendicular to line at angle from point (px, py) */
+  function drawOneTick(px, py, angle) {
+    const perpX = Math.sin(angle) * 9;
+    const perpY = Math.cos(angle) * 9;
+    const tick = svgEl('line', {
+      x1: px - perpX, y1: py - perpY,
+      x2: px + perpX, y2: py + perpY,
+      stroke: '#64748b', 'stroke-width': '2', fill: 'none'
+    });
+    svg.appendChild(tick);
+    /* Second tick 6px further for "exactly one" */
+    const dx = Math.cos(angle) * 6;
+    const dy = -Math.sin(angle) * 6;
+    const tick2 = svgEl('line', {
+      x1: px - perpX + dx, y1: py - perpY + dy,
+      x2: px + perpX + dx, y2: py + perpY + dy,
+      stroke: '#64748b', 'stroke-width': '2', fill: 'none'
+    });
+    svg.appendChild(tick2);
+  }
+
+  /* Draw crow's foot (many) at point (px, py) with line coming from direction angle */
+  function drawCrowFoot(px, py, angle) {
+    const len = 12;
+    const spread = 9;
+    /* center line */
+    const bx = px + Math.cos(angle) * len;
+    const by = py - Math.sin(angle) * len;
+    /* spread lines */
+    const perpX = Math.sin(angle) * spread;
+    const perpY = Math.cos(angle) * spread;
+    for (const [ox, oy] of [[0,0],[perpX,perpY],[-perpX,-perpY]]) {
+      svg.appendChild(svgEl('line', {
+        x1: px + ox, y1: py + oy,
+        x2: bx, y2: by,
+        stroke: '#64748b', 'stroke-width': '1.8', fill: 'none'
+      }));
+    }
+  }
+
+  /* Angle of segment from (x1,y1) toward (x2,y2) as it enters (x2,y2) */
+  function inAngle(pts) {
+    const n = pts.length;
+    const [x1,y1] = pts[n-2];
+    const [x2,y2] = pts[n-1];
+    return Math.atan2(y2 - y1, x2 - x1);
+  }
+
+  /* Angle of segment leaving (x1,y1) */
+  function outAngle(pts) {
+    const [x1,y1] = pts[0];
+    const [x2,y2] = pts[1];
+    return Math.atan2(y2 - y1, x2 - x1);
+  }
+
+  /* Draw a complete relationship:
+     pts      = array of [x,y] waypoints (first = "one" end, last = "many" end)
+     oneEnd   = 'first' | 'last'
+     manyEnd  = 'first' | 'last'
+     label    = optional string
+     dashed   = boolean (for non-identifying)
+  */
+  function relation(pts, card1, card2, label, dashed = false) {
+    polyline(pts, dashed);
+
+    /* Start end decorations */
+    if (card1 === '1') {
+      const angle = outAngle(pts) + Math.PI; // pointing away from line
+      const [x, y] = pts[0];
+      const offset = 10;
+      const ox = Math.cos(outAngle(pts)) * offset;
+      const oy = Math.sin(outAngle(pts)) * offset;
+      drawOneTick(x + ox, y + oy, outAngle(pts) + Math.PI / 2);
+    }
+
+    /* End decorations */
+    if (card2 === 'N') {
+      const angle = inAngle(pts);
+      const [px, py] = pts[pts.length - 1];
+      const offset = 10;
+      const ox = -Math.cos(angle) * offset;
+      const oy = -Math.sin(angle) * offset;
+      drawCrowFoot(px + ox, py + oy, angle + Math.PI);
+    } else if (card2 === '1') {
+      const angle = inAngle(pts);
+      const [px, py] = pts[pts.length - 1];
+      const offset = 10;
+      const ox = -Math.cos(angle) * offset;
+      const oy = -Math.sin(angle) * offset;
+      drawOneTick(px + ox, py + oy, angle + Math.PI / 2);
+    }
+
+    /* Label */
+    if (label) {
+      const mid = Math.floor(pts.length / 2);
+      const [mx, my] = pts[mid];
+      svg.appendChild(svgEl('rect', { x: mx-22, y: my-10, width: 44, height: 14, rx: 3, class: 'conn-bg' }));
+      const t = svgEl('text', { x: mx, y: my, 'text-anchor': 'middle', 'dominant-baseline': 'middle', class: 'conn-label' });
+      t.textContent = label;
+      svg.appendChild(t);
+    }
+  }
+
+  /* ---- Wait for layout then draw ---- */
+  window.addEventListener('load', function () {
+    const u = rect('e-users');
+    const g = rect('e-guests');
+    const b = rect('e-bookings');
+    const p = rect('e-payments');
+    const cat = rect('e-categories');
+    const r = rect('e-rooms');
+    const tar = rect('e-tariffs');
+    const rev = rect('e-reviews');
+    const n = rect('e-notifications');
+
+    /* ── 1. users → guests  (1:1) ── */
+    relation(
+      [[u.r, u.cy], [g.l, g.cy]],
+      '1', '1', '1 : 1'
+    );
+
+    /* ── 2. guests → bookings  (1:N) ── */
+    relation(
+      [[g.r, g.cy], [b.l, b.t + 60]],
+      '1', 'N', '1 : N'
+    );
+
+    /* ── 3. bookings → payments  (1:N) ── */
+    relation(
+      [[b.r, b.t + 60], [p.l, p.cy]],
+      '1', 'N', '1 : N'
+    );
+
+    /* ── 4. room_categories → rooms  (1:N) ── */
+    relation(
+      [[cat.r, cat.cy], [r.l, r.cy]],
+      '1', 'N', '1 : N'
+    );
+
+    /* ── 5. room_categories → tariffs  (1:N)  vertical ── */
+    relation(
+      [[cat.cx, cat.b], [tar.cx, tar.t]],
+      '1', 'N', '1 : N'
+    );
+
+    /* ── 6. rooms → bookings  (1:N)  L-shape ── */
+    const midX56 = b.l - 50;
+    relation(
+      [
+        [r.r, r.cy],
+        [midX56, r.cy],
+        [midX56, b.t + 86],
+        [b.l, b.t + 86]
+      ],
+      '1', 'N', '1 : N'
+    );
+
+    /* ── 7. bookings → reviews  (1:1)  vertical ── */
+    relation(
+      [[b.cx, b.b], [rev.cx, rev.t]],
+      '1', '1', '1 : 1'
+    );
+
+    /* ── 8. guests → reviews  (1:N)  L-shape ── */
+    const gy8 = rev.cy;
+    const gx8 = rev.l - 30;
+    relation(
+      [
+        [g.cx, g.b],
+        [g.cx, gy8],
+        [rev.l, rev.cy]
+      ],
+      '1', 'N', '1 : N'
+    );
+
+    /* ── 9. bookings → notifications  (1:N)  routed ── */
+    relation(
+      [
+        [b.r, b.t + 112],
+        [b.r + 60, b.t + 112],
+        [b.r + 60, n.cy],
+        [n.l, n.cy]
+      ],
+      '1', 'N', '1 : N'
+    );
+
+    /* ── 10. guests → notifications  (1:N)  routed ── */
+    const gNoteX = g.cx + 20;
+    relation(
+      [
+        [g.b - 0, g.b],      // actually: attach to bottom of guests
+        [g.cx, n.cy - 120],
+        [n.l - 40, n.cy - 120],
+        [n.l - 40, n.t + 120],
+        [n.l, n.t + 120]
+      ],
+      '1', 'N', null, true   // dashed — secondary relationship
+    );
+  });
+})();
+</script>
+
+</body>
+</html>

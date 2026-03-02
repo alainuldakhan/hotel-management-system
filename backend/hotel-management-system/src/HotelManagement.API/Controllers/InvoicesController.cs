@@ -15,6 +15,18 @@ public class InvoicesController : ControllerBase
 
     public InvoicesController(IMediator mediator) => _mediator = mediator;
 
+    /// <summary>Список всех инвойсов с пагинацией и фильтрацией</summary>
+    [HttpGet]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? status,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+        => Ok(await _mediator.Send(
+            new GetAllInvoicesQuery(new Application.DTOs.InvoiceFilterDto(status, from, to, page, pageSize)), ct));
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetInvoiceByIdQuery(id), ct));

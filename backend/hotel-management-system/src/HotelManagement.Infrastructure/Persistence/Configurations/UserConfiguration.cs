@@ -1,4 +1,4 @@
-using HotelManagement.Domain.Entities;
+﻿using HotelManagement.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -52,7 +52,14 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.RefreshTokenExpiryTime)
             .HasColumnName("refresh_token_expiry_time");
 
+        builder.Property(u => u.IsDnr).HasColumnName("is_dnr").HasDefaultValue(false);
+        builder.Property(u => u.DnrReason).HasColumnName("dnr_reason").HasMaxLength(1000);
+        builder.Property(u => u.DnrFlaggedAt).HasColumnName("dnr_flagged_at");
+        builder.Property(u => u.DnrFlaggedByUserId).HasColumnName("dnr_flagged_by_user_id");
+
         builder.Property(u => u.CreatedAt).HasColumnName("created_at");
         builder.Property(u => u.UpdatedAt).HasColumnName("updated_at");
     }
 }
+
+// Добавляю DNR поля в существующую конфигурацию

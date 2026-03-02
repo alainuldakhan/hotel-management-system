@@ -1,457 +1,270 @@
-import type { BookingStatus, HousekeepingStatus, HousekeepingTaskType, MaintenancePriority, MaintenanceStatus, PaymentStatus, RoomStatus, UserRole } from './enums';
-
-// ─── Common ───────────────────────────────────────────────────────────────────
+import { BookingStatus, RoomStatus, PaymentStatus, MaintenanceStatus, MaintenancePriority, HousekeepingStatus, HousekeepingTaskType, UserRole, PaymentMethod } from './enums';
 
 export interface PagedResult<T> {
   items: T[];
   totalCount: number;
-  page: number;
+  pageNumber: number;
   pageSize: number;
   totalPages: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
 }
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-
-export interface UserInfoDto {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: UserRole;
-}
-
-export interface AuthResponse {
+export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
   expiresAt: string;
-  user: UserInfoDto;
+  user: UserDto;
 }
 
-export interface LoginRequest {
+export interface UserDto {
+  id: string;
   email: string;
-  password: string;
-}
-
-export interface RegisterRequest {
   firstName: string;
   lastName: string;
-  email: string;
-  password: string;
-  phoneNumber?: string;
-}
-
-export interface RefreshTokenRequest {
-  refreshToken: string;
-}
-
-// ─── Rooms ────────────────────────────────────────────────────────────────────
-
-export interface RoomListItemDto {
-  id: string;
-  number: string;
-  floor: number;
-  status: RoomStatus;
-  roomTypeName: string;
-  maxOccupancy: number;
-  pricePerNight: number;
-  area: number;
-  imageUrl?: string;
-}
-
-export interface RoomDetailDto {
-  id: string;
-  number: string;
-  floor: number;
-  status: RoomStatus;
-  notes?: string;
-  roomTypeId: string;
-  roomTypeName: string;
-  roomTypeDescription: string;
-  maxOccupancy: number;
-  basePrice: number;
-  area: number;
-  amenities: string[];
-  imageUrl?: string;
-}
-
-export interface CreateRoomRequest {
-  number: string;
-  floor: number;
-  roomTypeId: string;
-  notes?: string;
-}
-
-export interface UpdateRoomRequest {
-  number: string;
-  floor: number;
-  roomTypeId: string;
-  notes?: string;
-}
-
-export interface RoomOccupancyStatsDto {
-  totalRooms: number;
-  availableRooms: number;
-  occupiedRooms: number;
-  cleaningRooms: number;
-  maintenanceRooms: number;
-  occupancyPercent: number;
-}
-
-// ─── Room Types ───────────────────────────────────────────────────────────────
-
-export interface RoomTypeListItemDto {
-  id: string;
-  name: string;
-  description: string;
-  maxOccupancy: number;
-  basePrice: number;
-  area: number;
-  roomsCount: number;
-  imageUrl?: string;
+  fullName: string;
+  phone?: string;
+  role: UserRole;
   isActive: boolean;
-}
-
-export interface RoomTypeDetailDto {
-  id: string;
-  name: string;
-  description: string;
-  maxOccupancy: number;
-  basePrice: number;
-  area: number;
-  amenities: string[];
-  imageUrl?: string;
-  isActive: boolean;
+  isDnr: boolean;
+  dnrReason?: string;
   createdAt: string;
 }
 
-export interface CreateRoomTypeRequest {
-  name: string;
-  description: string;
-  maxOccupancy: number;
-  basePrice: number;
-  area: number;
-  amenities?: string[];
-}
-
-export interface UpdateRoomTypeRequest {
-  name: string;
-  description: string;
-  maxOccupancy: number;
-  basePrice: number;
-  area: number;
-  amenities: string[];
-}
-
-// ─── Bookings ─────────────────────────────────────────────────────────────────
-
-export interface BookingListItemDto {
+export interface RoomTypeDto {
   id: string;
-  roomNumber: string;
+  name: string;
+  description?: string;
+  basePrice: number;
+  capacity: number;
+  amenities: string[];
+  createdAt: string;
+}
+
+export interface RoomDto {
+  id: string;
+  number: string;
+  floor: number;
+  status: RoomStatus;
+  roomTypeId: string;
   roomTypeName: string;
-  guestFullName: string;
+  roomTypeBasePrice: number;
+  description?: string;
+  createdAt: string;
+}
+
+export interface BookingDto {
+  id: string;
+  guestId: string;
+  guestName: string;
   guestEmail: string;
-  checkInDate: string;
-  checkOutDate: string;
-  nightsCount: number;
-  guestsCount: number;
-  status: BookingStatus;
-  paymentStatus: PaymentStatus;
-  totalAmount: number;
-  createdAt: string;
-}
-
-export interface BookingServiceItemDto {
-  serviceName: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-}
-
-export interface BookingDetailDto {
-  id: string;
   roomId: string;
   roomNumber: string;
   roomTypeName: string;
-  guestId: string;
-  guestFullName: string;
-  guestEmail: string;
-  guestPhone?: string;
   checkInDate: string;
   checkOutDate: string;
-  nightsCount: number;
-  guestsCount: number;
   status: BookingStatus;
-  paymentStatus: PaymentStatus;
   totalAmount: number;
-  paidAmount?: number;
+  nightsCount: number;
+  notes?: string;
   qrCodeToken?: string;
-  specialRequests?: string;
-  actualCheckIn?: string;
-  actualCheckOut?: string;
-  services: BookingServiceItemDto[];
   createdAt: string;
+  services?: BookingServiceDto[];
 }
 
-export interface CreateBookingRequest {
-  roomId: string;
-  guestId: string;
-  checkInDate: string;
-  checkOutDate: string;
-  guestsCount: number;
-  specialRequests?: string;
+export interface BookingServiceDto {
+  serviceId: string;
+  serviceName: string;
+  price: number;
+  quantity: number;
 }
-
-export interface BookingFilterParams {
-  page?: number;
-  pageSize?: number;
-  status?: string;
-  paymentStatus?: string;
-  checkInFrom?: string;
-  checkInTo?: string;
-  guestId?: string;
-  roomId?: string;
-  searchTerm?: string;
-}
-
-// ─── Booking Grid (Шахматка) ──────────────────────────────────────────────────
-
-export interface BookingGridItemDto {
-  id: string;
-  guestFullName: string;
-  checkInDate: string;
-  checkOutDate: string;
-  nightsCount: number;
-  status: BookingStatus;
-}
-
-export interface RoomGridRowDto {
-  roomId: string;
-  roomNumber: string;
-  floor: number;
-  roomTypeName: string;
-  roomStatus: RoomStatus;
-  bookings: BookingGridItemDto[];
-}
-
-// ─── Additional Services ─────────────────────────────────────────────────────
 
 export interface AdditionalServiceDto {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   price: number;
-  iconUrl?: string;
   isActive: boolean;
 }
-
-export interface CreateServiceRequest {
-  name: string;
-  description: string;
-  price: number;
-}
-
-export interface UpdateServiceRequest {
-  name: string;
-  description: string;
-  price: number;
-}
-
-// ─── Invoices ─────────────────────────────────────────────────────────────────
 
 export interface InvoiceDto {
   id: string;
   invoiceNumber: string;
   bookingId: string;
+  guestName: string;
   roomNumber: string;
-  guestFullName: string;
-  amount: number;
-  status: PaymentStatus;
-  paymentMethod?: string;
-  paidAt?: string;
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  paymentStatus: PaymentStatus;
+  issuedAt: string;
+  dueDate?: string;
   notes?: string;
-  createdAt: string;
 }
 
-// ─── Maintenance ──────────────────────────────────────────────────────────────
-
-export interface MaintenanceRequestListItemDto {
+export interface MaintenanceRequestDto {
   id: string;
-  title: string;
-  status: MaintenanceStatus;
-  priority: MaintenancePriority;
+  roomId: string;
   roomNumber: string;
-  reportedBy: string;
-  assignedTo?: string;
-  createdAt: string;
-}
-
-export interface MaintenanceRequestDetailDto {
-  id: string;
   title: string;
-  description: string;
-  status: MaintenanceStatus;
+  description?: string;
   priority: MaintenancePriority;
-  resolution?: string;
+  status: MaintenanceStatus;
+  assignedToId?: string;
+  assignedToName?: string;
+  reportedById: string;
+  reportedByName: string;
   resolvedAt?: string;
+  createdAt: string;
+}
+
+export interface HousekeepingTaskDto {
+  id: string;
   roomId: string;
   roomNumber: string;
-  reportedByUserId: string;
-  reportedBy: string;
-  assignedToUserId?: string;
-  assignedTo?: string;
+  taskType: HousekeepingTaskType;
+  status: HousekeepingStatus;
+  assignedToId?: string;
+  assignedToName?: string;
+  notes?: string;
+  scheduledFor?: string;
+  completedAt?: string;
   createdAt: string;
-  updatedAt?: string;
 }
 
-export interface CreateMaintenanceRequest {
-  roomId: string;
-  reportedByUserId: string;
-  title: string;
-  description: string;
-  priority?: MaintenancePriority;
-}
-
-export interface MaintenanceFilterParams {
-  page?: number;
-  pageSize?: number;
-  status?: string;
-  priority?: string;
-  roomId?: string;
-  assignedToUserId?: string;
-}
-
-// ─── Users ────────────────────────────────────────────────────────────────────
-
-export interface UserListItemDto {
+export interface ReviewDto {
   id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phoneNumber?: string;
-  role: UserRole;
+  guestId: string;
+  guestName: string;
+  bookingId: string;
+  roomNumber: string;
+  roomTypeName: string;
+  rating: number;
+  comment?: string;
+  createdAt: string;
+}
+
+export interface PricingRuleDto {
+  id: string;
+  name: string;
+  multiplier: number;
+  startDate?: string;
+  endDate?: string;
+  applicableDays?: number[];
+  minOccupancyPercent?: number;
+  maxDaysBeforeCheckIn?: number;
+  roomTypeId?: string;
+  roomTypeName?: string;
   isActive: boolean;
   createdAt: string;
 }
 
-export interface UserProfileDto {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phoneNumber?: string;
-  role: UserRole;
-  createdAt: string;
-  totalBookings: number;
-  totalSpent: number;
-  lastBookingDate?: string;
-}
-
-// ─── Reviews ──────────────────────────────────────────────────────────────────
-
-export interface ReviewDto {
-  id: string;
-  rating: number;
-  comment?: string;
-  guestFullName: string;
-  roomTypeName: string;
-  createdAt: string;
-}
-
-export interface RoomTypeRatingDto {
-  roomTypeId: string;
-  roomTypeName: string;
-  averageRating: number;
-  reviewCount: number;
-}
-
-// ─── Housekeeping ─────────────────────────────────────────────────────────────
-
-export interface HousekeepingTaskListItemDto {
-  id: string;
-  type: HousekeepingTaskType;
-  status: HousekeepingStatus;
-  roomNumber: string;
-  floor: number;
-  requestedBy: string;
-  assignedTo?: string;
-  dueDate?: string;
-  createdAt: string;
-}
-
-export interface HousekeepingTaskDetailDto {
-  id: string;
-  type: HousekeepingTaskType;
-  status: HousekeepingStatus;
-  notes?: string;
-  completionNotes?: string;
-  dueDate?: string;
-  completedAt?: string;
-  roomId: string;
-  roomNumber: string;
-  floor: number;
-  requestedByUserId: string;
-  requestedBy: string;
-  assignedToUserId?: string;
-  assignedTo?: string;
-  createdAt: string;
-  updatedAt?: string;
-}
-
-export interface CreateHousekeepingTaskRequest {
-  roomId: string;
-  requestedByUserId: string;
-  type: HousekeepingTaskType;
-  notes?: string;
-  dueDate?: string;
-}
-
-export interface HousekeepingFilterParams {
-  page?: number;
-  pageSize?: number;
-  status?: string;
-  type?: string;
-  roomId?: string;
-  assignedToUserId?: string;
-}
-
-// ─── Analytics ────────────────────────────────────────────────────────────────
-
 export interface DashboardStatsDto {
+  occupancyRate: number;
   totalRooms: number;
   occupiedRooms: number;
-  occupancyPercent: number;
+  availableRooms: number;
   revenueToday: number;
   revenueThisMonth: number;
-  bookingsToday: number;
   checkInsToday: number;
   checkOutsToday: number;
-  pendingMaintenanceRequests: number;
-  activeBookings: number;
+  pendingMaintenance: number;
+  pendingHousekeeping: number;
 }
 
 export interface RevenueByPeriodDto {
   period: string;
   revenue: number;
   bookingsCount: number;
-  averageBookingValue: number;
 }
 
 export interface OccupancyByRoomTypeDto {
+  roomTypeId: string;
   roomTypeName: string;
-  totalRooms: number;
-  averageOccupancyPercent: number;
+  occupancyPercent: number;
+  adr: number;
   totalRevenue: number;
-  averageDailyRate: number;
+  totalNights: number;
+}
+
+export interface KpiStatsDto {
+  adr: number;
+  revPar: number;
+  alos: number;
+  occupancyPercent: number;
+  totalRoomNightsSold: number;
+  roomsOnBooks30Days: number;
+  roomsOnBooks60Days: number;
+  roomsOnBooks90Days: number;
+}
+
+export interface ArrivalItemDto {
+  bookingId: string;
+  guestName: string;
+  roomNumber: string;
+  roomTypeName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  status: BookingStatus;
+  nights: number;
+  totalAmount: number;
+}
+
+export interface DepartureItemDto {
+  bookingId: string;
+  guestName: string;
+  roomNumber: string;
+  roomTypeName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  totalAmount: number;
+}
+
+export interface InHouseGuestDto {
+  bookingId: string;
+  guestName: string;
+  guestEmail: string;
+  roomNumber: string;
+  roomTypeName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  nights: number;
+  totalAmount: number;
+}
+
+export interface ForecastDayDto {
+  date: string;
+  occupiedRooms: number;
+  totalRooms: number;
+  occupancyPercent: number;
+}
+
+export interface PaymentDto {
+  id: string;
+  bookingId: string;
+  invoiceId?: string;
+  amount: number;
+  method: PaymentMethod;
+  reference?: string;
+  receivedAt: string;
+  receivedByName?: string;
+  notes?: string;
+}
+
+export interface RoomBlockDto {
+  id: string;
+  roomId: string;
+  roomNumber: string;
+  blockedFrom: string;
+  blockedTo: string;
+  reason: string;
+  blockedByName?: string;
+  isActive: boolean;
 }
 
 export interface TopGuestDto {
   guestId: string;
-  fullName: string;
-  email: string;
+  guestName: string;
+  guestEmail: string;
   totalBookings: number;
-  totalNights: number;
-  totalSpent: number;
-  lastVisit: string;
+  totalSpend: number;
+  lastStay?: string;
 }

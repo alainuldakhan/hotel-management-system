@@ -1,29 +1,13 @@
-import apiClient from './client';
-import type {
-  CreateHousekeepingTaskRequest,
-  HousekeepingFilterParams,
-  HousekeepingTaskDetailDto,
-  HousekeepingTaskListItemDto,
-  PagedResult,
-} from '../types/api';
+import client from './client';
+import type { HousekeepingTaskDto, PagedResult } from '../types/api';
 
 export const housekeepingApi = {
-  getAll: (params?: HousekeepingFilterParams) =>
-    apiClient
-      .get<PagedResult<HousekeepingTaskListItemDto>>('/housekeeping', { params })
-      .then((r) => r.data),
-
-  getById: (id: string) =>
-    apiClient.get<HousekeepingTaskDetailDto>(`/housekeeping/${id}`).then((r) => r.data),
-
-  create: (data: CreateHousekeepingTaskRequest) =>
-    apiClient.post<{ id: string }>('/housekeeping', data).then((r) => r.data),
-
-  assign: (id: string, assignedToUserId: string) =>
-    apiClient.post(`/housekeeping/${id}/assign`, { assignedToUserId }),
-
-  complete: (id: string, completionNotes?: string) =>
-    apiClient.post(`/housekeeping/${id}/complete`, { completionNotes }),
-
-  cancel: (id: string) => apiClient.post(`/housekeeping/${id}/cancel`),
+  getAll: (params?: { page?: number; pageSize?: number; status?: string; roomId?: string; date?: string }) =>
+    client.get<PagedResult<HousekeepingTaskDto>>('/housekeeping', { params }),
+  getById: (id: string) => client.get<HousekeepingTaskDto>(`/housekeeping/${id}`),
+  create: (data: { roomId: string; taskType: string; notes?: string; scheduledFor?: string; assignedToId?: string }) =>
+    client.post<HousekeepingTaskDto>('/housekeeping', data),
+  update: (id: string, data: { status?: string; notes?: string; assignedToId?: string }) =>
+    client.put(`/housekeeping/${id}`, data),
+  complete: (id: string) => client.post(`/housekeeping/${id}/complete`),
 };

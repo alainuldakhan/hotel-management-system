@@ -1,40 +1,20 @@
-import apiClient from './client';
-import type {
-  CreateRoomRequest,
-  RoomDetailDto,
-  RoomListItemDto,
-  RoomOccupancyStatsDto,
-  UpdateRoomRequest,
-} from '../types/api';
-import type { RoomStatus } from '../types/enums';
+import client from './client';
+import type { RoomDto, PagedResult, RoomBlockDto } from '../types/api';
 
 export const roomsApi = {
-  getAll: () =>
-    apiClient.get<RoomListItemDto[]>('/rooms').then((r) => r.data),
-
-  getById: (id: string) =>
-    apiClient.get<RoomDetailDto>(`/rooms/${id}`).then((r) => r.data),
-
-  getAvailable: (checkIn: string, checkOut: string, guestsCount: number, roomTypeId?: string) =>
-    apiClient
-      .get<RoomListItemDto[]>('/rooms/available', {
-        params: { checkIn, checkOut, guestsCount, roomTypeId },
-      })
-      .then((r) => r.data),
-
-  getOccupancyStats: () =>
-    apiClient.get<RoomOccupancyStatsDto>('/rooms/occupancy-stats').then((r) => r.data),
-
-  create: (data: CreateRoomRequest) =>
-    apiClient.post<{ id: string }>('/rooms', data).then((r) => r.data),
-
-  update: (id: string, data: UpdateRoomRequest) =>
-    apiClient.put(`/rooms/${id}`, { id, ...data }),
-
-  updateStatus: (id: string, status: RoomStatus) =>
-    apiClient.patch(`/rooms/${id}/status`, status, {
-      headers: { 'Content-Type': 'application/json' },
-    }),
-
-  delete: (id: string) => apiClient.delete(`/rooms/${id}`),
+  getAll: (params?: { page?: number; pageSize?: number; status?: string; roomTypeId?: string; floor?: number }) =>
+    client.get<PagedResult<RoomDto>>('/rooms', { params }),
+  getById: (id: string) => client.get<RoomDto>(`/rooms/${id}`),
+  create: (data: { number: string; floor: number; roomTypeId: string; description?: string }) =>
+    client.post<RoomDto>('/rooms', data),
+  update: (id: string, data: { number?: string; floor?: number; roomTypeId?: string; description?: string }) =>
+    client.put(`/rooms/${id}`, data),
+  delete: (id: string) => client.delete(`/rooms/${id}`),
+  changeStatus: (id: string, status: string) =>
+    client.patch(`/rooms/${id}/status`, { status }),
+  blockRoom: (id: string, data: { blockedFrom: string; blockedTo: string; reason: string }) =>
+    client.post(`/rooms/${id}/block`, data),
+  unblockRoom: (id: string, blockId: string) =>
+    client.delete(`/rooms/${id}/block/${blockId}`),
+  getBlocks: (id: string) => client.get<RoomBlockDto[]>(`/rooms/${id}/blocks`),
 };

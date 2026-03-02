@@ -3,11 +3,13 @@ using HotelManagement.Application.Common.Interfaces.Queries;
 using HotelManagement.Application.Common.Interfaces.Repositories;
 using HotelManagement.Domain.Interfaces;
 using HotelManagement.Infrastructure.Persistence;
+using HotelManagement.Infrastructure.Persistence.Interceptors;
 using HotelManagement.Infrastructure.Persistence.Repositories;
 using HotelManagement.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 
 namespace HotelManagement.Infrastructure.Extensions;
 
@@ -20,8 +22,17 @@ public static class InfrastructureServiceExtensions
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
+        // ── Redis Cache ──────────────────────────────────────────────────────
+        var redisConnection = configuration["Redis:ConnectionString"] ?? "localhost:6379";
+        services.AddSingleton<IConnectionMultiplexer>(_ =>
+            ConnectionMultiplexer.Connect(redisConnection));
+        services.AddSingleton<ICacheService, RedisCacheService>();
+
+        // ── Audit Interceptor ────────────────────────────────────────────────
+        services.AddScoped<AuditSaveChangesInterceptor>();
+
         // ── EF Core (Commands / Write) ──────────────────────────────────────
-        services.AddDbContext<ApplicationDbContext>(options =>
+        services.AddDbContext<ApplicationDbContext>((sp, options) =>
             options.UseNpgsql(
                 connectionString,
                 npgsql => npgsql.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)
@@ -40,6 +51,8 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IMaintenanceRepository, MaintenanceRepository>();
         services.AddScoped<IHousekeepingRepository, HousekeepingRepository>();
         services.AddScoped<IReviewRepository, ReviewRepository>();
+        services.AddScoped<IRoomBlockRepository, RoomBlockRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
 
         // ── Dapper (Queries / Read) ─────────────────────────────────────────
         services.AddSingleton<IDbConnectionFactory>(
@@ -57,6 +70,8 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IUserQueryService, UserQueryService>();
         services.AddScoped<IHousekeepingQueryService, HousekeepingQueryService>();
         services.AddScoped<IReviewQueryService, ReviewQueryService>();
+        services.AddScoped<IRoomBlockQueryService, RoomBlockQueryService>();
+        services.AddScoped<IPaymentQueryService, PaymentQueryService>();
 
         // ── Services ────────────────────────────────────────────────────────
         services.AddScoped<IJwtService, JwtService>();

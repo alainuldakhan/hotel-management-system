@@ -1,3 +1,4 @@
+using HotelManagement.Application.Common;
 using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Repositories;
 using HotelManagement.Domain.Entities;
@@ -16,17 +17,20 @@ public class CheckOutCommandHandler : IRequestHandler<CheckOutCommand>
     private readonly IRoomRepository _roomRepository;
     private readonly IEmailService _emailService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICacheService _cache;
 
     public CheckOutCommandHandler(
         IBookingRepository bookingRepository,
         IRoomRepository roomRepository,
         IEmailService emailService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ICacheService cache)
     {
         _bookingRepository = bookingRepository;
         _roomRepository = roomRepository;
         _emailService = emailService;
         _unitOfWork = unitOfWork;
+        _cache = cache;
     }
 
     public async Task Handle(CheckOutCommand request, CancellationToken cancellationToken)
@@ -46,6 +50,7 @@ public class CheckOutCommandHandler : IRequestHandler<CheckOutCommand>
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _cache.RemoveAsync(CacheKeys.DashboardStats);
 
         // Отправка email-квитанции гостю
         var bookingWithDetails = await _bookingRepository.GetByIdWithDetailsAsync(request.Id, cancellationToken);

@@ -8,4 +8,7 @@ public interface IInvoiceQueryService
     Task<InvoiceDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<InvoiceDetailDto?> GetDetailByIdAsync(Guid id, CancellationToken ct = default);
     Task<IEnumerable<DailyOccupancyItemDto>> GetDailyOccupancyAsync(DateTime date, CancellationToken ct = default);
+
+    /// <summary>Пагинированный список всех счетов с фильтрацией (для страницы инвойсов)</summary>
+    Task<PagedResultDto<InvoiceDto>> GetAllPagedAsync(InvoiceFilterDto filter, CancellationToken ct = default);
 }

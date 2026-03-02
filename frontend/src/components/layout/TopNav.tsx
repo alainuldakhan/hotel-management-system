@@ -1,126 +1,79 @@
-import {
-    BarChartOutlined,
-    CalendarOutlined,
-    ClearOutlined,
-    HomeOutlined,
-    LikeOutlined,
-    SettingOutlined,
-    TableOutlined,
-    TeamOutlined,
-    ToolOutlined,
-    UnorderedListOutlined,
-    UserOutlined,
-} from '@ant-design/icons';
-import { Menu } from 'antd';
-import type { MenuProps } from 'antd';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { UserRole } from '../../types/enums';
+import { Bell, Search, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
+import { useState } from 'react';
 
-export function TopNav() {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { isManagerOrAbove, hasRole } = useAuth();
+interface Props {
+  title: string;
+}
 
-    const items: MenuProps['items'] = [
-        {
-            key: '/dashboard',
-            icon: <HomeOutlined />,
-            label: 'Дашборд',
-        },
-        {
-            key: '/bookings',
-            icon: <CalendarOutlined />,
-            label: 'Бронирования',
-            children: [
-                {
-                    key: '/bookings-list',
-                    label: 'Список броней',
-                    onClick: () => navigate('/bookings'),
-                },
-                {
-                    key: '/bookings/new',
-                    label: 'Новое бронирование',
-                },
-                ...(hasRole(UserRole.Receptionist, UserRole.Manager, UserRole.SuperAdmin)
-                    ? [{ key: '/bookings/grid', icon: <TableOutlined />, label: 'Шахматка' }]
-                    : []),
-            ],
-        },
-        {
-            key: '/rooms',
-            icon: <UnorderedListOutlined />,
-            label: 'Номера',
-            children: [
-                { key: '/rooms', label: 'Все номера' },
-                ...(isManagerOrAbove
-                    ? [{ key: '/room-types', icon: <SettingOutlined />, label: 'Типы номеров' }]
-                    : []),
-            ],
-        },
-        {
-            key: '/maintenance',
-            icon: <ToolOutlined />,
-            label: 'Обслуживание',
-        },
-        ...(hasRole(
-            UserRole.HousekeepingStaff,
-            UserRole.Receptionist,
-            UserRole.Manager,
-            UserRole.SuperAdmin
-        )
-            ? [{ key: '/housekeeping', icon: <ClearOutlined />, label: 'Уборка' }]
-            : []),
-        ...(hasRole(UserRole.Receptionist, UserRole.Manager, UserRole.SuperAdmin)
-            ? [{ key: '/invoices', icon: <UnorderedListOutlined />, label: 'Счета' }]
-            : []),
-        ...(isManagerOrAbove
-            ? [
-                {
-                    key: 'management',
-                    label: 'Управление',
-                    icon: <BarChartOutlined />,
-                    children: [
-                        { key: '/analytics', icon: <BarChartOutlined />, label: 'Аналитика' },
-                        { key: '/services', icon: <SettingOutlined />, label: 'Услуги' },
-                        { key: '/reviews', icon: <LikeOutlined />, label: 'Отзывы' },
-                        { key: '/users', icon: <TeamOutlined />, label: 'Сотрудники' },
-                    ],
-                },
-            ]
-            : []),
-        {
-            key: '/profile',
-            icon: <UserOutlined />,
-            label: 'Профиль',
-        },
-    ];
+export default function TopNav({ title }: Props) {
+  const { clearAuth } = useAuthStore();
+  const navigate = useNavigate();
+  const [search, setSearch] = useState('');
 
-    const selectedKey =
-        location.pathname === '/bookings/grid'
-            ? '/bookings/grid'
-            : '/' + location.pathname.split('/')[1];
+  const handleLogout = () => {
+    clearAuth();
+    navigate('/login');
+  };
 
-    return (
-        <Menu
-            mode="horizontal"
-            selectedKeys={[selectedKey]}
-            items={items}
-            onClick={({ key }) => {
-                if (!key.startsWith('management') && key !== '/bookings-list') {
-                    navigate(key);
-                }
-            }}
+  return (
+    <header style={{
+      height: 60, background: '#fff', borderBottom: '1px solid #e2e8f0',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0 28px', flexShrink: 0, position: 'sticky', top: 0, zIndex: 50,
+    }}>
+      {/* Left */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{title}</h2>
+        <span style={{
+          background: '#f1f5f9', color: '#64748b', fontSize: 11, padding: '2px 8px',
+          borderRadius: 12, fontWeight: 500,
+        }}>
+          {new Date().toLocaleDateString('ru-KZ', { weekday: 'short', day: 'numeric', month: 'short' })}
+        </span>
+      </div>
+
+      {/* Right */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Search */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: '#f1f5f9', border: '1px solid #e2e8f0',
+          borderRadius: 8, padding: '6px 12px', width: 220,
+        }}>
+          <Search size={14} color="#94a3b8" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Поиск..."
             style={{
-                background: 'transparent',
-                border: 'none',
-                flex: 1,
-                minWidth: 0,
-                justifyContent: 'center',
-                color: 'rgba(255,255,255,0.85)',
+              border: 'none', background: 'transparent', outline: 'none',
+              fontSize: 13, color: '#1e293b', width: '100%',
             }}
-            className="booking-nav"
-            disabledOverflow
-        />
-    );
+          />
+        </div>
+
+        {/* Bell */}
+        <button style={{
+          width: 36, height: 36, border: '1px solid #e2e8f0', borderRadius: 8,
+          background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Bell size={16} color="#64748b" />
+        </button>
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          title="Выйти"
+          style={{
+            width: 36, height: 36, border: '1px solid #e2e8f0', borderRadius: 8,
+            background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <LogOut size={16} color="#ef4444" />
+        </button>
+      </div>
+    </header>
+  );
 }

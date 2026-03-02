@@ -1,425 +1,72 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
 
-/* ─── Design Tokens ─────────────────────────────────── */
-:root {
-  /* Brand colors */
-  --booking-blue:         #003580;
-  --booking-blue-light:   #0071c2;
-  --booking-blue-pale:    #e8f0fe;
-  --booking-yellow:       #FFB700;
-  --booking-yellow-pale:  #fff8e6;
+@theme {
+  --color-primary: #3b82f6;
+  --color-primary-dark: #2563eb;
+  --color-primary-darker: #1d4ed8;
+  --color-primary-light: #eff6ff;
 
-  /* Surface */
-  --booking-bg:           #f0f4f8;
-  --booking-white:        #ffffff;
-  --booking-border:       #e2e8f0;
-  --booking-border-light: #f1f5f9;
+  --color-sidebar: #0f172a;
+  --color-sidebar-hover: #1e293b;
 
-  /* Text */
-  --booking-dark:         #1a1a2e;
-  --booking-text:         #1a1a2e;
-  --booking-text-muted:   #6b7280;
-  --booking-text-faint:   #9ca3af;
+  --color-success: #22c55e;
+  --color-success-light: #f0fdf4;
+  --color-warning: #eab308;
+  --color-warning-light: #fefce8;
+  --color-danger: #ef4444;
+  --color-danger-light: #fef2f2;
+  --color-info: #06b6d4;
+  --color-info-light: #ecfeff;
+  --color-accent: #8b5cf6;
+  --color-accent-light: #f5f3ff;
 
-  /* Semantic */
-  --booking-success:      #008234;
-  --booking-success-pale: #e6f7ed;
-  --booking-danger:       #cc0000;
-  --booking-danger-pale:  #fff0f0;
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-border: #e2e8f0;
+  --color-muted-bg: #f8fafc;
 
-  /* Shadows */
-  --shadow-xs:    0 1px 3px rgba(0, 53, 128, 0.06);
-  --shadow-sm:    0 2px 8px rgba(0, 53, 128, 0.08);
-  --shadow-md:    0 4px 16px rgba(0, 53, 128, 0.12);
-  --shadow-lg:    0 8px 32px rgba(0, 53, 128, 0.16);
-  --shadow-hover: 0 6px 24px rgba(0, 53, 128, 0.18);
+  --color-text: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-text-light: #cbd5e1;
 
-  /* Radius */
-  --radius-sm:   6px;
-  --radius-md:   8px;
-  --radius-lg:   12px;
-  --radius-xl:   16px;
-  --radius-pill: 100px;
-
-  /* Layout */
-  --page-padding:  28px;
-  --section-gap:   24px;
-  --card-padding:  24px;
+  --font-sans: 'Inter', 'Segoe UI', sans-serif;
 }
 
-/* ─── Reset ─────────────────────────────────────────── */
-* {
+*, *::before, *::after {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
 }
 
 body {
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--booking-bg);
-  color: var(--booking-text);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background-color: #f8fafc;
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
-#root {
-  min-height: 100vh;
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
-/* ─── Scrollbar ─────────────────────────────────────── */
-::-webkit-scrollbar        { width: 6px; height: 6px; }
-::-webkit-scrollbar-track  { background: transparent; }
-::-webkit-scrollbar-thumb  { background: var(--booking-border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #b0bec5; }
-
-/* ─── Ant Design Layout ──────────────────────────────── */
-.ant-layout         { background: var(--booking-bg) !important; }
-.ant-layout-content { background: var(--booking-bg) !important; }
-
-/* ─── Page Header ────────────────────────────────────── */
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: var(--section-gap);
-  gap: 16px;
+button, input, select, textarea {
+  font-family: inherit;
 }
 
-.page-header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
-
-.page-header-title {
-  font-size: 22px !important;
-  font-weight: 800 !important;
-  color: var(--booking-dark) !important;
-  line-height: 1.2 !important;
-  margin: 0 !important;
-}
-
-.page-header-subtitle {
-  color: var(--booking-text-muted) !important;
-  font-size: 13px !important;
-  font-weight: 400 !important;
-}
-
-.page-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-/* ─── KPI Cards ──────────────────────────────────────── */
-.kpi-card {
-  background: var(--booking-white);
-  border-radius: var(--radius-lg) !important;
-  border: 1px solid var(--booking-border) !important;
-  box-shadow: var(--shadow-sm) !important;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-  overflow: hidden;
-  position: relative;
-}
-
-.kpi-card::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--booking-blue-light);
-  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
-}
-
-.kpi-card:hover {
-  box-shadow: var(--shadow-hover) !important;
-  transform: translateY(-2px);
-}
-
-.kpi-card .ant-card-body {
-  padding: 20px 20px 20px 24px !important;
-}
-
-.kpi-card .ant-statistic-title {
-  color: var(--booking-text-muted) !important;
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  text-transform: uppercase;
-  letter-spacing: 0.7px;
-  margin-bottom: 8px !important;
-}
-
-.kpi-card .ant-statistic-content-value {
-  font-size: 28px !important;
-  font-weight: 800 !important;
-  color: var(--booking-dark) !important;
-  line-height: 1.1 !important;
-}
-
-.kpi-card .ant-statistic-content-suffix {
-  font-size: 14px !important;
-  color: var(--booking-text-muted) !important;
-}
-
-/* KPI icon */
-.kpi-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
-.kpi-icon--blue    { background: #dbeafe; color: #1d4ed8; }
-.kpi-icon--green   { background: var(--booking-success-pale); color: var(--booking-success); }
-.kpi-icon--orange  { background: #ffedd5; color: #c2410c; }
-.kpi-icon--purple  { background: #f3e8ff; color: #7c3aed; }
-.kpi-icon--yellow  { background: var(--booking-yellow-pale); color: #b45309; }
-.kpi-icon--teal    { background: #ccfbf1; color: #0f766e; }
-.kpi-icon--red     { background: var(--booking-danger-pale); color: var(--booking-danger); }
-
-/* KPI trend */
-.kpi-trend {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  margin-top: 6px;
-}
-
-.kpi-trend--up      { color: var(--booking-success); }
-.kpi-trend--down    { color: var(--booking-danger); }
-.kpi-trend--neutral { color: var(--booking-text-muted); }
-
-/* ─── Content Cards ──────────────────────────────────── */
-.content-card {
-  background: var(--booking-white);
-  border-radius: var(--radius-lg) !important;
-  border: 1px solid var(--booking-border) !important;
-  box-shadow: var(--shadow-sm) !important;
-}
-
-.content-card .ant-card-head {
-  border-bottom: 1px solid var(--booking-border-light) !important;
-  padding: 0 var(--card-padding) !important;
-  min-height: 52px !important;
-}
-
-.content-card .ant-card-head-title {
-  font-weight: 700 !important;
-  color: var(--booking-dark) !important;
-  font-size: 15px !important;
-}
-
-/* Compat alias */
-.booking-card {
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-sm) !important;
-}
-
-.booking-card:hover {
-  box-shadow: var(--shadow-hover) !important;
-  transform: translateY(-1px);
-}
-
-/* ─── Stat card (legacy) ─────────────────────────────── */
-.stat-card .ant-statistic-title {
-  color: var(--booking-text-muted) !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.stat-card .ant-statistic-content-value {
-  font-weight: 800 !important;
-  color: var(--booking-dark) !important;
-}
-
-/* ─── Table ──────────────────────────────────────────── */
-.ant-table-wrapper {
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-xs);
-  border: 1px solid var(--booking-border);
-}
-
-.ant-table-thead > tr > th {
-  background: var(--booking-blue) !important;
-  color: #fff !important;
-  font-weight: 700 !important;
-  font-size: 11px !important;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: none !important;
-  padding: 13px 16px !important;
-}
-
-.ant-table-thead > tr > th::before {
-  display: none !important;
-}
-
-.ant-table-tbody > tr > td {
-  padding: 13px 16px !important;
-  border-bottom: 1px solid var(--booking-border-light) !important;
-  vertical-align: middle;
-}
-
-.ant-table-tbody > tr:hover > td {
-  background: #f0f5ff !important;
-}
-
-.ant-table-tbody > tr:last-child > td {
-  border-bottom: none !important;
-}
-
-.ant-table-tbody > tr.ant-table-row-selected > td {
-  background: #e8f0fe !important;
-}
-
-.ant-pagination {
-  margin: 16px 16px 8px !important;
-}
-
-/* ─── Status Pill Badges ─────────────────────────────── */
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  white-space: nowrap;
-  line-height: 1.6;
-}
-
-.status-pill::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
-}
-
-.status-pill--green   { background: var(--booking-success-pale); color: #006b2b; }
-.status-pill--red     { background: var(--booking-danger-pale);  color: #b80000; }
-.status-pill--blue    { background: #dbeafe; color: #1d4ed8; }
-.status-pill--orange  { background: #ffedd5; color: #c2410c; }
-.status-pill--purple  { background: #f3e8ff; color: #7c3aed; }
-.status-pill--gray    { background: #f3f4f6; color: #4b5563; }
-.status-pill--yellow  { background: var(--booking-yellow-pale); color: #92400e; }
-.status-pill--cyan    { background: #ecfeff; color: #0e7490; }
-.status-pill--magenta { background: #fdf4ff; color: #9333ea; }
-.status-pill--volcano { background: #fff7ed; color: #c2410c; }
-
-/* ─── Filter Bar ─────────────────────────────────────── */
-.filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  background: var(--booking-white);
-  padding: 14px 16px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--booking-border);
-  box-shadow: var(--shadow-xs);
-}
-
-/* ─── Top Navigation ─────────────────────────────────── */
-.booking-nav .ant-menu-item-selected {
-  border-bottom: 3px solid var(--booking-yellow) !important;
-  color: var(--booking-yellow) !important;
-}
-
-.booking-nav .ant-menu-item:hover {
-  color: var(--booking-yellow) !important;
-}
-
-.booking-nav .ant-menu-submenu-title:hover {
-  color: var(--booking-yellow) !important;
-}
-
-.booking-nav .ant-menu-submenu-selected > .ant-menu-submenu-title {
-  color: var(--booking-yellow) !important;
-}
-
-/* ─── Header ─────────────────────────────────────────── */
-.user-dropdown:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border-radius: var(--radius-md) !important;
-}
-
-/* ─── Welcome Banner ─────────────────────────────────── */
-.welcome-banner {
-  background: linear-gradient(135deg, var(--booking-blue) 0%, #0059a8 60%, #0071c2 100%);
-  border-radius: var(--radius-xl);
-  padding: 28px 32px;
-  color: #ffffff;
-  margin-bottom: var(--section-gap);
-  position: relative;
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
-}
-
-.welcome-banner::after {
-  content: '';
-  position: absolute;
-  right: -40px;
-  top: -40px;
-  width: 200px;
-  height: 200px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 50%;
-}
-
-/* ─── Empty State ────────────────────────────────────── */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 56px 24px;
-  color: var(--booking-text-muted);
-  gap: 12px;
-}
-
-.empty-state-icon {
-  font-size: 52px;
-  opacity: 0.25;
-  line-height: 1;
-}
-
-.empty-state-text {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--booking-text-muted);
-}
-
-/* ─── Section header inside page ────────────────────── */
-.section-title {
-  font-size: 15px !important;
-  font-weight: 700 !important;
-  color: var(--booking-dark) !important;
-  margin: 0 0 16px 0 !important;
-}
-
-/* ─── Utility ────────────────────────────────────────── */
-.text-primary { color: var(--booking-blue-light) !important; }
-.text-muted   { color: var(--booking-text-muted) !important; }
-.text-faint   { color: var(--booking-text-faint) !important; }
-.text-success { color: var(--booking-success) !important; }
-.text-danger  { color: var(--booking-danger) !important; }
-.fw-600 { font-weight: 600 !important; }
-.fw-700 { font-weight: 700 !important; }
-.fw-800 { font-weight: 800 !important; }

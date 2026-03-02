@@ -1,28 +1,17 @@
-import { Typography } from 'antd';
-import type { ReactNode } from 'react';
-
-const { Title, Text } = Typography;
-
-interface PageHeaderProps {
+interface Props {
   title: string;
   subtitle?: string;
-  actions?: ReactNode;
+  action?: React.ReactNode;
 }
 
-export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
+export default function PageHeader({ title, subtitle, action }: Props) {
   return (
-    <div className="page-header">
-      <div className="page-header-left">
-        <Title className="page-header-title" level={3}>
-          {title}
-        </Title>
-        {subtitle && (
-          <Text className="page-header-subtitle">{subtitle}</Text>
-        )}
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e293b', margin: 0 }}>{title}</h1>
+        {subtitle && <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>{subtitle}</p>}
       </div>
-      {actions && (
-        <div className="page-header-actions">{actions}</div>
-      )}
+      {action && <div>{action}</div>}
     </div>
   );
 }

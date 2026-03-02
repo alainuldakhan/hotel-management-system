@@ -1,3 +1,4 @@
+using HotelManagement.Application.Common;
 using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Queries;
 using HotelManagement.Application.DTOs;
@@ -6,30 +7,38 @@ namespace HotelManagement.Infrastructure.Persistence.Repositories;
 
 public class RoomTypeQueryService : DapperQueryBase, IRoomTypeQueryService
 {
-    public RoomTypeQueryService(IDbConnectionFactory connectionFactory)
-        : base(connectionFactory) { }
+    private readonly ICacheService _cache;
+
+    public RoomTypeQueryService(IDbConnectionFactory connectionFactory, ICacheService cache)
+        : base(connectionFactory) { _cache = cache; }
 
     public async Task<IEnumerable<RoomTypeListItemDto>> GetAllAsync(CancellationToken ct = default)
     {
-        var sql = """
-            SELECT
-                rt.id               AS Id,
-                rt.name             AS Name,
-                rt.description      AS Description,
-                rt.max_occupancy    AS MaxOccupancy,
-                rt.base_price       AS BasePrice,
-                rt.area             AS Area,
-                COUNT(r.id)         AS RoomsCount,
-                rt.image_url        AS ImageUrl,
-                rt.is_active        AS IsActive
-            FROM room_types rt
-            LEFT JOIN rooms r ON r.room_type_id = rt.id AND r.is_active = true
-            GROUP BY rt.id, rt.name, rt.description, rt.max_occupancy,
-                     rt.base_price, rt.area, rt.image_url, rt.is_active
-            ORDER BY rt.name
-            """;
-
-        return await QueryAsync<RoomTypeListItemDto>(sql, ct: ct);
+        return await _cache.GetOrSetAsync(
+            CacheKeys.RoomTypesAll,
+            async () =>
+            {
+                var sql = """
+                    SELECT
+                        rt.id               AS Id,
+                        rt.name             AS Name,
+                        rt.description      AS Description,
+                        rt.max_occupancy    AS MaxOccupancy,
+                        rt.base_price       AS BasePrice,
+                        rt.area             AS Area,
+                        COUNT(r.id)         AS RoomsCount,
+                        rt.image_url        AS ImageUrl,
+                        rt.is_active        AS IsActive
+                    FROM room_types rt
+                    LEFT JOIN rooms r ON r.room_type_id = rt.id AND r.is_active = true
+                    GROUP BY rt.id, rt.name, rt.description, rt.max_occupancy,
+                             rt.base_price, rt.area, rt.image_url, rt.is_active
+                    ORDER BY rt.name
+                    """;
+                return (await QueryAsync<RoomTypeListItemDto>(sql, ct: ct)).ToList();
+            },
+            TimeSpan.FromMinutes(10),
+            ct);
     }
 
     public async Task<RoomTypeDetailDto?> GetByIdAsync(Guid id, CancellationToken ct = default)

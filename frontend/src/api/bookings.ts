@@ -1,43 +1,26 @@
-import apiClient from './client';
-import type {
-  BookingDetailDto,
-  BookingFilterParams,
-  BookingListItemDto,
-  CreateBookingRequest,
-  PagedResult,
-  RoomGridRowDto,
-} from '../types/api';
+import client from './client';
+import type { BookingDto, PagedResult } from '../types/api';
 
 export const bookingsApi = {
-  getAll: (params?: BookingFilterParams) =>
-    apiClient.get<PagedResult<BookingListItemDto>>('/bookings', { params }).then((r) => r.data),
-
-  getMy: () =>
-    apiClient.get<BookingDetailDto[]>('/bookings/my').then((r) => r.data),
-
-  getById: (id: string) =>
-    apiClient.get<BookingDetailDto>(`/bookings/${id}`).then((r) => r.data),
-
-  create: (data: CreateBookingRequest) =>
-    apiClient.post<{ id: string }>('/bookings', data).then((r) => r.data),
-
-  confirm: (id: string) => apiClient.post(`/bookings/${id}/confirm`),
-
-  checkIn: (id: string) => apiClient.post(`/bookings/${id}/check-in`),
-
-  checkOut: (id: string) => apiClient.post(`/bookings/${id}/check-out`),
-
+  getAll: (params?: { page?: number; pageSize?: number; status?: string; guestId?: string; roomId?: string; from?: string; to?: string }) =>
+    client.get<PagedResult<BookingDto>>('/bookings', { params }),
+  getById: (id: string) => client.get<BookingDto>(`/bookings/${id}`),
+  create: (data: {
+    guestId: string; roomId: string; checkInDate: string; checkOutDate: string;
+    notes?: string; serviceIds?: string[];
+  }) => client.post<BookingDto>('/bookings', data),
+  update: (id: string, data: { notes?: string; serviceIds?: string[] }) =>
+    client.put(`/bookings/${id}`, data),
   cancel: (id: string, reason?: string) =>
-    apiClient.post(`/bookings/${id}/cancel`, { reason }),
-
+    client.post(`/bookings/${id}/cancel`, { reason }),
+  confirm: (id: string) => client.post(`/bookings/${id}/confirm`),
+  checkIn: (id: string) => client.post(`/bookings/${id}/check-in`),
+  checkOut: (id: string) => client.post(`/bookings/${id}/check-out`),
+  checkInByQr: (qrToken: string) => client.post('/bookings/check-in/qr', { qrToken }),
   addService: (id: string, serviceId: string, quantity = 1) =>
-    apiClient.post(`/bookings/${id}/services`, { serviceId, quantity }),
-
+    client.post(`/bookings/${id}/services`, { serviceId, quantity }),
   removeService: (id: string, serviceId: string) =>
-    apiClient.delete(`/bookings/${id}/services/${serviceId}`),
-
-  getGrid: (startDate: string, endDate: string) =>
-    apiClient
-      .get<RoomGridRowDto[]>('/bookings/grid', { params: { startDate, endDate } })
-      .then((r) => r.data),
+    client.delete(`/bookings/${id}/services/${serviceId}`),
+  getGrid: (from: string, to: string) =>
+    client.get<BookingDto[]>('/bookings/grid', { params: { from, to } }),
 };

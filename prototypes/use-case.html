@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hotel AIS — Use Case Diagram</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px;
+  }
+
+  .diagram {
+    position: relative;
+    width: 1200px;
+    height: 1100px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .06);
+    overflow: hidden;
+  }
+
+  /* ---- SVG connectors layer ---- */
+  .diagram > svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ---- System boundary ---- */
+  .boundary {
+    position: absolute;
+    top: 30px;
+    left: 190px;
+    width: 760px;
+    height: 1040px;
+    border: 2px solid #475569;
+    border-radius: 6px;
+    background: #f8fafc;
+    z-index: 1;
+  }
+
+  .boundary-title {
+    position: absolute;
+    top: -13px;
+    left: 20px;
+    background: #f8fafc;
+    padding: 0 10px;
+    font-weight: 700;
+    font-size: .95rem;
+    color: #334155;
+  }
+
+  /* ---- Zone separator ---- */
+  .zone-line {
+    position: absolute;
+    top: 610px;
+    left: 20px;
+    right: 20px;
+    border-top: 1.5px dashed #94a3b8;
+  }
+
+  .zone-label {
+    position: absolute;
+    font-size: .72rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    background: #f8fafc;
+    padding: 0 8px;
+  }
+
+  .zone-label.public  { top: 18px;  right: 20px; }
+  .zone-label.private { top: 618px; right: 20px; }
+
+  /* ---- Actor ---- */
+  .actor {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 110px;
+    z-index: 2;
+  }
+
+  .actor svg {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 6px;
+  }
+
+  .actor span {
+    font-size: .84rem;
+    font-weight: 700;
+    color: #1e293b;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  /* ---- External system (box) ---- */
+  .external {
+    position: absolute;
+    width: 130px;
+    height: 60px;
+    background: #e2e8f0;
+    border: 2px solid #64748b;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: .82rem;
+    font-weight: 700;
+    color: #334155;
+    z-index: 2;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
+    line-height: 1.3;
+  }
+
+  /* ---- Use-case (oval) ---- */
+  .uc {
+    position: absolute;
+    width: 215px;
+    height: 54px;
+    background: #fff;
+    border: 2px solid #2563eb;
+    border-radius: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: .82rem;
+    font-weight: 600;
+    color: #1e3a8a;
+    z-index: 2;
+    box-shadow: 0 3px 8px rgba(37, 99, 235, .08);
+    padding: 0 14px;
+    line-height: 1.2;
+    transition: background .15s;
+  }
+
+  .uc:hover { background: #eff6ff; }
+
+  .uc small {
+    display: block;
+    font-size: .68rem;
+    font-weight: 400;
+    color: #64748b;
+    margin-top: 1px;
+  }
+
+  /* ---- SVG line styles ---- */
+  .assoc       { stroke: #64748b; stroke-width: 1.8; fill: none; }
+  .include-line { stroke: #64748b; stroke-width: 1.5; stroke-dasharray: 6 4; fill: none; }
+  .zone-svg    { stroke: #cbd5e1; stroke-width: 1; stroke-dasharray: 4 4; }
+
+  .svg-label {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 11px;
+    fill: #475569;
+  }
+
+  .svg-label-bg { fill: #f8fafc; }
+
+  /* ---- Caption ---- */
+  .caption {
+    margin-top: 18px;
+    font-size: 1rem;
+    color: #475569;
+    font-style: italic;
+  }
+
+  /* ======== Positions: Actors ======== */
+  #guest  { top: 230px; left: 20px; }
+  #admin  { top: 700px; left: 20px; }
+  #system { top: 530px; left: 1050px; }
+
+  /* ======== Positions: External systems ======== */
+  #payment-gw { top: 255px; left: 1010px; }
+  #email-svc  { top: 400px; left: 1010px; }
+
+  /* ======== Positions: Use-cases (relative to .boundary) ======== */
+
+  /* --- Guest / Public Zone --- */
+  #uc-register { top:  40px; left: 25px; }
+  #uc-search   { top: 130px; left: 25px; }
+  #uc-book     { top: 220px; left: 25px; }
+  #uc-cancel   { top: 310px; left: 25px; }
+  #uc-history  { top: 400px; left: 25px; }
+  #uc-review   { top: 490px; left: 25px; }
+
+  /* --- Include / System targets (right column) --- */
+  #uc-avail      { top: 130px; left: 500px; }
+  #uc-pay        { top: 260px; left: 500px; }
+  #uc-notify     { top: 395px; left: 500px; }
+  #uc-autocancel { top: 525px; left: 500px; }
+
+  /* --- Admin / Private Zone --- */
+  #uc-checkin  { top: 650px; left: 25px; }
+  #uc-roomstat { top: 740px; left: 25px; }
+  #uc-rooms    { top: 830px; left: 25px; }
+  #uc-tariffs  { top: 650px; left: 420px; }
+  #uc-guests   { top: 740px; left: 420px; }
+  #uc-report   { top: 830px; left: 420px; }
+
+  /* --- Separate Admin-only indicator --- */
+  #uc-checkin, #uc-roomstat, #uc-rooms,
+  #uc-tariffs, #uc-guests, #uc-report {
+    border-color: #7c3aed;
+    color: #4c1d95;
+    box-shadow: 0 3px 8px rgba(124, 58, 237, .08);
+  }
+  #uc-checkin:hover, #uc-roomstat:hover, #uc-rooms:hover,
+  #uc-tariffs:hover, #uc-guests:hover, #uc-report:hover {
+    background: #f5f3ff;
+  }
+</style>
+</head>
+<body>
+
+<div class="diagram" id="diagram">
+
+  <!-- SVG connectors (drawn by JS) -->
+  <svg id="connectors">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="8"
+              refX="7" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 Z" fill="#64748b"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <!-- =============== System boundary =============== -->
+  <div class="boundary">
+    <div class="boundary-title">Hotel Services AIS (.NET / React)</div>
+
+    <div class="zone-label public">Public Zone</div>
+    <div class="zone-line"></div>
+    <div class="zone-label private">Private Zone</div>
+
+    <!-- Guest use-cases -->
+    <div class="uc" id="uc-register">
+      Register / Login<small>JWT Auth</small>
+    </div>
+    <div class="uc" id="uc-search">
+      Search Rooms<small>Public Web / React SPA</small>
+    </div>
+    <div class="uc" id="uc-book">
+      Create Booking<small>User Session / Redis Lock</small>
+    </div>
+    <div class="uc" id="uc-cancel">
+      Cancel Booking<small>Refund Flow</small>
+    </div>
+    <div class="uc" id="uc-history">
+      View Booking History<small>Personal Account</small>
+    </div>
+    <div class="uc" id="uc-review">
+      Leave Review<small>Post Check-out</small>
+    </div>
+
+    <!-- Include / System targets -->
+    <div class="uc" id="uc-avail">
+      Check Availability<small>Redis Cache</small>
+    </div>
+    <div class="uc" id="uc-pay">
+      Process Payment<small>Secure Transaction</small>
+    </div>
+    <div class="uc" id="uc-notify">
+      Send Notification<small>Email Voucher / SMS</small>
+    </div>
+    <div class="uc" id="uc-autocancel">
+      Auto-cancel Booking<small>Redis TTL Expiry</small>
+    </div>
+
+    <!-- Admin use-cases -->
+    <div class="uc" id="uc-checkin">
+      Check-in / Check-out<small>Admin Dashboard</small>
+    </div>
+    <div class="uc" id="uc-roomstat">
+      Manage Room Status<small>Update Inventory</small>
+    </div>
+    <div class="uc" id="uc-rooms">
+      Manage Rooms<small>CRUD Operations</small>
+    </div>
+    <div class="uc" id="uc-tariffs">
+      Manage Tariffs<small>Pricing / Seasons</small>
+    </div>
+    <div class="uc" id="uc-guests">
+      Manage Guests<small>Guest Directory</small>
+    </div>
+    <div class="uc" id="uc-report">
+      Generate Reports<small>PostgreSQL Analytics</small>
+    </div>
+  </div>
+
+  <!-- =============== Actors =============== -->
+  <div class="actor" id="guest">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="7" r="4"/>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+    </svg>
+    <span>Guest</span>
+  </div>
+
+  <div class="actor" id="admin">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="7" r="4"/>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+    <span>Front Desk<br>Agent</span>
+  </div>
+
+  <div class="actor" id="system">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0
+               0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33
+               1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65
+               1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2
+               2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68
+               15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65
+               1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2
+               2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9
+               4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4
+               0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0
+               1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65
+               1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2
+               0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+    <span>System<br>(Autonomous)</span>
+  </div>
+
+  <!-- =============== External systems =============== -->
+  <div class="external" id="payment-gw">Payment<br>Gateway API</div>
+  <div class="external" id="email-svc">Email / SMS<br>Service</div>
+
+</div>
+
+<p class="caption">Figure 2.2 — Detailed Use Case Diagram: Automated Information System for Hotel Services</p>
+
+<script>
+(function () {
+  const svg = document.getElementById('connectors');
+  const root = document.getElementById('diagram');
+
+  /* ---- Geometry helpers ---- */
+  function rect(id) {
+    const el = document.getElementById(id);
+    const box = el.getBoundingClientRect();
+    const p = root.getBoundingClientRect();
+    return {
+      cx: box.left - p.left + box.width / 2,
+      cy: box.top  - p.top  + box.height / 2,
+      l:  box.left - p.left,
+      r:  box.left - p.left + box.width,
+      t:  box.top  - p.top,
+      b:  box.top  - p.top  + box.height,
+      w:  box.width,
+      h:  box.height
+    };
+  }
+
+  function ovalEdge(id, px, py) {
+    const r = rect(id);
+    const rx = r.w / 2, ry = r.h / 2;
+    const a = Math.atan2(py - r.cy, px - r.cx);
+    return { x: r.cx + rx * Math.cos(a), y: r.cy + ry * Math.sin(a) };
+  }
+
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  }
+
+  /* ---- Drawing functions ---- */
+
+  /* Solid line: actor center → oval edge */
+  function assoc(fromId, toId) {
+    const a = rect(fromId);
+    const p = ovalEdge(toId, a.cx, a.cy);
+    svg.appendChild(svgEl('line', {
+      x1: a.cx, y1: a.cy, x2: p.x, y2: p.y, class: 'assoc'
+    }));
+  }
+
+  /* Solid line: oval edge → box edge */
+  function assocToBox(fromId, toId) {
+    const a = rect(fromId);
+    const b = rect(toId);
+    const p = ovalEdge(fromId, b.cx, b.cy);
+    const x2 = a.cx < b.cx ? b.l : b.r;
+    svg.appendChild(svgEl('line', {
+      x1: p.x, y1: p.y, x2: x2, y2: b.cy, class: 'assoc'
+    }));
+  }
+
+  /* Dashed <<include>> arrow with label */
+  function include(fromId, toId) {
+    const fR = rect(fromId), tR = rect(toId);
+    const p1 = ovalEdge(fromId, tR.cx, tR.cy);
+    const p2 = ovalEdge(toId, fR.cx, fR.cy);
+
+    svg.appendChild(svgEl('line', {
+      x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y,
+      class: 'include-line', 'marker-end': 'url(#arrow)'
+    }));
+
+    const mx = (p1.x + p2.x) / 2;
+    const my = (p1.y + p2.y) / 2;
+
+    svg.appendChild(svgEl('rect', {
+      x: mx - 36, y: my - 17, width: 72, height: 15,
+      rx: 3, class: 'svg-label-bg'
+    }));
+
+    const label = svgEl('text', {
+      x: mx, y: my - 5, 'text-anchor': 'middle', class: 'svg-label'
+    });
+    label.textContent = '\u00ABinclude\u00BB';
+    svg.appendChild(label);
+  }
+
+  /* ======== All connections ======== */
+
+  /* Guest → use-cases */
+  assoc('guest', 'uc-register');
+  assoc('guest', 'uc-search');
+  assoc('guest', 'uc-book');
+  assoc('guest', 'uc-cancel');
+  assoc('guest', 'uc-history');
+  assoc('guest', 'uc-review');
+
+  /* Admin → use-cases */
+  assoc('admin', 'uc-checkin');
+  assoc('admin', 'uc-roomstat');
+  assoc('admin', 'uc-rooms');
+  assoc('admin', 'uc-tariffs');
+  assoc('admin', 'uc-guests');
+  assoc('admin', 'uc-report');
+  assoc('admin', 'uc-pay');
+
+  /* System → use-cases */
+  assoc('system', 'uc-autocancel');
+  assoc('system', 'uc-notify');
+
+  /* <<include>> from Create Booking */
+  include('uc-book', 'uc-avail');
+  include('uc-book', 'uc-pay');
+  include('uc-book', 'uc-notify');
+
+  /* External system links */
+  assocToBox('uc-pay',    'payment-gw');
+  assocToBox('uc-notify', 'email-svc');
+})();
+</script>
+
+</body>
+</html>

@@ -1,4 +1,5 @@
-using HotelManagement.Application.Features.Rooms.Commands;
+﻿using HotelManagement.Application.Features.Rooms.Commands;
+using System.Security.Claims;
 using HotelManagement.Application.Features.Rooms.Queries;
 using HotelManagement.Domain.Enums;
 using MediatR;
@@ -76,4 +77,31 @@ public class RoomsController : ControllerBase
         await _mediator.Send(new DeleteRoomCommand(id), ct);
         return NoContent();
     }
+
+    /// <summary>Get room blocks [Receptionist, Manager, SuperAdmin]</summary>
+    [HttpGet("{id:guid}/blocks")]
+    [Authorize(Roles = "Receptionist,Manager,SuperAdmin")]
+    public async Task<IActionResult> GetBlocks(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetRoomBlocksQuery(id), ct));
+
+    /// <summary>Block a room [Manager, SuperAdmin]</summary>
+    [HttpPost("{id:guid}/block")]
+    [Authorize(Roles = "Manager,SuperAdmin")]
+    public async Task<IActionResult> Block(Guid id, [FromBody] BlockRoomRequest body, CancellationToken ct)
+    {
+        var userId = Guid.Parse(User.FindFirstValue("sub") ?? Guid.Empty.ToString());
+        var blockId = await _mediator.Send(new BlockRoomCommand(id, body.From, body.To, body.Reason, userId), ct);
+        return Ok(new { id = blockId });
+    }
+
+    /// <summary>Unblock a room [Manager, SuperAdmin]</summary>
+    [HttpDelete("{id:guid}/block/{blockId:guid}")]
+    [Authorize(Roles = "Manager,SuperAdmin")]
+    public async Task<IActionResult> Unblock(Guid id, Guid blockId, CancellationToken ct)
+    {
+        await _mediator.Send(new UnblockRoomCommand(blockId), ct);
+        return NoContent();
+    }
 }
+
+public record BlockRoomRequest(DateTime From, DateTime To, string Reason);

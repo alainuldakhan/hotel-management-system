@@ -1,4 +1,6 @@
 using FluentValidation;
+using HotelManagement.Application.Common;
+using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Repositories;
 using HotelManagement.Domain.Entities;
 using HotelManagement.Domain.Exceptions;
@@ -33,11 +35,16 @@ public class UpdatePricingRuleCommandHandler : IRequestHandler<UpdatePricingRule
 {
     private readonly IPricingRuleRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICacheService _cache;
 
-    public UpdatePricingRuleCommandHandler(IPricingRuleRepository repository, IUnitOfWork unitOfWork)
+    public UpdatePricingRuleCommandHandler(
+        IPricingRuleRepository repository,
+        IUnitOfWork unitOfWork,
+        ICacheService cache)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
+        _cache = cache;
     }
 
     public async Task Handle(UpdatePricingRuleCommand request, CancellationToken cancellationToken)
@@ -55,5 +62,7 @@ public class UpdatePricingRuleCommandHandler : IRequestHandler<UpdatePricingRule
 
         _repository.Update(rule);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await _cache.RemoveAsync(CacheKeys.PricingRulesAll);
     }
 }

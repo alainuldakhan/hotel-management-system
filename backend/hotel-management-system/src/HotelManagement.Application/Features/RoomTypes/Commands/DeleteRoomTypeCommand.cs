@@ -1,3 +1,5 @@
+using HotelManagement.Application.Common;
+using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Repositories;
 using HotelManagement.Domain.Entities;
 using HotelManagement.Domain.Exceptions;
@@ -16,11 +18,16 @@ public class DeleteRoomTypeCommandHandler : IRequestHandler<DeleteRoomTypeComman
 {
     private readonly IRoomTypeRepository _roomTypeRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICacheService _cache;
 
-    public DeleteRoomTypeCommandHandler(IRoomTypeRepository roomTypeRepository, IUnitOfWork unitOfWork)
+    public DeleteRoomTypeCommandHandler(
+        IRoomTypeRepository roomTypeRepository,
+        IUnitOfWork unitOfWork,
+        ICacheService cache)
     {
         _roomTypeRepository = roomTypeRepository;
         _unitOfWork = unitOfWork;
+        _cache = cache;
     }
 
     public async Task Handle(DeleteRoomTypeCommand request, CancellationToken cancellationToken)
@@ -34,5 +41,7 @@ public class DeleteRoomTypeCommandHandler : IRequestHandler<DeleteRoomTypeComman
         roomType.Deactivate();
         _roomTypeRepository.Update(roomType);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await _cache.RemoveAsync(CacheKeys.RoomTypesAll);
     }
 }

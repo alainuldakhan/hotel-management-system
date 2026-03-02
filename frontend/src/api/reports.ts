@@ -1,55 +1,28 @@
-import { useAuthStore } from '../store/authStore';
-import { API_BASE_URL } from './client';
+import client from './client';
 
-/**
- * Скачивает PDF файл через прямой fetch с Bearer токеном.
- * window.open не передаёт заголовки авторизации, поэтому используем Blob download.
- */
-async function downloadPdf(url: string, filename: string): Promise<void> {
-  const token = useAuthStore.getState().accessToken;
-
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Ошибка генерации PDF: ${response.statusText}`);
-  }
-
-  const blob = await response.blob();
-  const objectUrl = URL.createObjectURL(blob);
-
-  const link = document.createElement('a');
-  link.href = objectUrl;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(objectUrl);
-}
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
 
 export const reportsApi = {
-  /** Скачать PDF счёт-фактуру */
-  downloadInvoicePdf: (invoiceId: string, invoiceNumber: string) =>
-    downloadPdf(
-      `${API_BASE_URL}/reports/invoice/${invoiceId}`,
-      `invoice-${invoiceNumber}.pdf`,
-    ),
-
-  /** Скачать ежедневный отчёт по заселению */
-  downloadDailyOccupancyReport: (date?: string) => {
-    const dateParam = date ? `?date=${date}` : '';
-    const label = date ?? new Date().toISOString().slice(0, 10);
-    return downloadPdf(
-      `${API_BASE_URL}/reports/daily-occupancy${dateParam}`,
-      `occupancy-${label}.pdf`,
-    );
+  downloadInvoice: async (invoiceId: string, invoiceNumber: string) => {
+    const { data } = await client.get(`/reports/invoice/${invoiceId}`, { responseType: 'blob' });
+    downloadBlob(data as Blob, `invoice-${invoiceNumber}.pdf`);
   },
-
-  /** Скачать отчёт по выручке */
-  downloadRevenueReport: (from: string, to: string, groupBy = 'month') =>
-    downloadPdf(
-      `${API_BASE_URL}/reports/revenue?from=${from}&to=${to}&groupBy=${groupBy}`,
-      `revenue-${from}-${to}.pdf`,
-    ),
+  downloadDailyOccupancy: async (date?: string) => {
+    const { data } = await client.get('/reports/daily-occupancy', { params: { date }, responseType: 'blob' });
+    const d = date ?? new Date().toISOString().split('T')[0];
+    downloadBlob(data as Blob, `occupancy-${d}.pdf`);
+  },
+  downloadRevenue: async (from: string, to: string, groupBy = 'month') => {
+    const { data } = await client.get('/reports/revenue', { params: { from, to, groupBy }, responseType: 'blob' });
+    downloadBlob(data as Blob, `revenue-${from}-${to}.pdf`);
+  },
 };

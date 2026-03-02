@@ -1,5 +1,6 @@
 using HotelManagement.Application.Common.Interfaces.Repositories;
 using HotelManagement.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace HotelManagement.Infrastructure.Persistence.Repositories;
 
@@ -15,4 +16,11 @@ public class PricingRuleRepository : BaseRepository<PricingRule>, IPricingRuleRe
 
     public new void Update(PricingRule rule)
         => _dbSet.Update(rule);
+
+    public async Task<IReadOnlyList<PricingRule>> GetActiveRulesForRoomTypeAsync(
+        Guid? roomTypeId, CancellationToken ct = default)
+        => await _dbSet
+            .Where(r => r.IsActive
+                && (r.RoomTypeId == null || r.RoomTypeId == roomTypeId))
+            .ToListAsync(ct);
 }

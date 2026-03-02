@@ -1,370 +1,129 @@
-import {
-  CalendarOutlined,
-  CheckCircleOutlined,
-  DollarOutlined,
-  EyeOutlined,
-  HomeOutlined,
-  LoginOutlined,
-  LogoutOutlined,
-  ToolOutlined,
-} from '@ant-design/icons';
-import { Alert, Button, Card, Col, Row, Spin, Statistic, Table, Typography } from 'antd';
-import { useQuery } from '@tanstack/react-query';
-import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { TrendingUp, BedDouble, Users, DollarSign, ArrowRight, CheckCircle, Clock, Wrench, Sparkles } from 'lucide-react';
 import { analyticsApi } from '../../api/analytics';
-import { bookingsApi } from '../../api/bookings';
-import { useAuth } from '../../hooks/useAuth';
-import { BookingStatusBadge } from '../../components/common/StatusBadge';
-import type { BookingListItemDto } from '../../types/api';
-import { BookingStatus } from '../../types/enums';
+import { frontDeskApi } from '../../api/frontDesk';
+import type { DashboardStatsDto, ArrivalItemDto, DepartureItemDto } from '../../types/api';
+import { formatCurrency, formatDate } from '../../utils/format';
+import StatusBadge from '../../components/common/StatusBadge';
+import Card from '../../components/common/Card';
+import { Link } from 'react-router-dom';
 
-const { Title, Text } = Typography;
+export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStatsDto | null>(null);
+  const [arrivals, setArrivals] = useState<ArrivalItemDto[]>([]);
+  const [departures, setDepartures] = useState<DepartureItemDto[]>([]);
+  const [loading, setLoading] = useState(true);
 
-interface StatCardProps {
-  title: string;
-  value: number | string;
-  suffix?: string;
-  prefix?: React.ReactNode;
-  color?: string;
-  accent?: string;
-}
+  useEffect(() => {
+    Promise.all([analyticsApi.getDashboard(), frontDeskApi.getArrivals(), frontDeskApi.getDepartures()])
+      .then(([s, a, d]) => { setStats(s.data); setArrivals(a.data.slice(0, 6)); setDepartures(d.data.slice(0, 6)); })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
-function StatCard({ title, value, suffix, prefix, color = '#1a1a2e', accent = '#0071c2' }: StatCardProps) {
-  return (
-    <div
-      style={{
-        background: '#ffffff',
-        borderRadius: 12,
-        padding: '20px 24px',
-        boxShadow: '0 2px 8px rgba(0,53,128,0.08)',
-        borderTop: `4px solid ${accent}`,
-        transition: 'box-shadow 0.2s ease, transform 0.2s ease',
-        cursor: 'default',
-        height: '100%',
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(0,53,128,0.15)';
-        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,53,128,0.08)';
-        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
-      }}
-    >
-      <Statistic
-        title={
-          <span style={{ color: '#6b7280', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            {title}
-          </span>
-        }
-        value={value}
-        suffix={suffix}
-        prefix={prefix ? <span style={{ color: accent, marginRight: 4, fontSize: 18 }}>{prefix}</span> : undefined}
-        valueStyle={{ color, fontWeight: 800, fontSize: 28 }}
-      />
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, color: '#94a3b8', fontSize: 14 }}>
+      Загрузка дашборда...
     </div>
   );
-}
 
-export function DashboardPage() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const today = dayjs().format('YYYY-MM-DD');
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['dashboard'],
-    queryFn: analyticsApi.getDashboard,
-    refetchInterval: 60_000,
-  });
-
-  // Сегодняшние заезды
-  const { data: checkIns } = useQuery({
-    queryKey: ['bookings-checkins-today'],
-    queryFn: () =>
-      bookingsApi.getAll({
-        checkInFrom: today,
-        checkInTo: today,
-        status: BookingStatus.Confirmed,
-        pageSize: 20,
-      }),
-    refetchInterval: 60_000,
-  });
-
-  // Сегодняшние выезды (заселённые гости)
-  const { data: checkOuts } = useQuery({
-    queryKey: ['bookings-checkouts-today'],
-    queryFn: () =>
-      bookingsApi.getAll({
-        checkInFrom: undefined,
-        checkInTo: undefined,
-        status: BookingStatus.CheckedIn,
-        pageSize: 20,
-      }),
-    refetchInterval: 60_000,
-  });
-
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
-
-  if (isError) {
-    return <Alert type="error" message="Не удалось загрузить данные дашборда" showIcon style={{ borderRadius: 8 }} />;
-  }
-
-  const stats = data!;
-
-  const bookingMiniColumns = [
-    { title: 'Номер', dataIndex: 'roomNumber', key: 'roomNumber', width: 80, render: (v: string) => `№${v}` },
-    { title: 'Гость', dataIndex: 'guestFullName', key: 'guestFullName', ellipsis: true },
-    {
-      title: 'Статус',
-      dataIndex: 'status',
-      key: 'status',
-      width: 120,
-      render: (s: BookingStatus) => <BookingStatusBadge status={s} />,
-    },
-    {
-      title: '',
-      key: 'action',
-      width: 50,
-      render: (_: unknown, record: BookingListItemDto) => (
-        <Button
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={() => navigate(`/bookings/${record.id}`)}
-        />
-      ),
-    },
+  const statCards = [
+    { label: 'Загруженность', value: stats ? `${stats.occupancyRate.toFixed(1)}%` : '—', sub: `${stats?.occupiedRooms ?? 0} из ${stats?.totalRooms ?? 0} номеров`, icon: <TrendingUp size={22} color="#3b82f6" />, iconBg: '#eff6ff' },
+    { label: 'Выручка (месяц)', value: stats ? formatCurrency(stats.revenueThisMonth) : '—', sub: `Сегодня: ${formatCurrency(stats?.revenueToday ?? 0)}`, icon: <DollarSign size={22} color="#22c55e" />, iconBg: '#f0fdf4' },
+    { label: 'Заезды сегодня', value: stats?.checkInsToday ?? '—', sub: `Выезды: ${stats?.checkOutsToday ?? 0}`, icon: <Users size={22} color="#eab308" />, iconBg: '#fefce8' },
+    { label: 'Свободных номеров', value: stats?.availableRooms ?? '—', sub: `Всего: ${stats?.totalRooms ?? 0}`, icon: <BedDouble size={22} color="#8b5cf6" />, iconBg: '#f5f3ff' },
   ];
 
   return (
     <div>
-      {/* Welcome Banner */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, #003580 0%, #0071c2 100%)',
-          borderRadius: 16,
-          padding: '28px 32px',
-          marginBottom: 28,
-          boxShadow: '0 4px 20px rgba(0,53,128,0.3)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <div>
-          <Title level={3} style={{ margin: 0, color: '#ffffff', fontWeight: 800 }}>
-            Добро пожаловать{user ? `, ${user.firstName}!` : '!'}
-          </Title>
-          <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14 }}>
-            Обзор отеля на сегодня —{' '}
-            {new Date().toLocaleDateString('ru-RU', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
-          </Text>
-        </div>
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            background: 'rgba(255,255,255,0.08)',
-            borderRadius: 16,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" style={{ width: 38, height: 38 }}>
-            <path d="M3 21h18M3 7l9-4 9 4M4 7v14M20 7v14M8 11v2M8 15v2M12 11v2M12 15v2M16 11v2M16 15v2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
+      {/* Stat Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
+        {statCards.map((c) => (
+          <Card key={c.label}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 10, background: c.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {c.icon}
+              </div>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: '#1e293b', lineHeight: 1 }}>{c.value}</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{c.label}</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{c.sub}</div>
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
 
-      {/* KPI Section */}
-      <Title level={5} style={{ marginBottom: 16, color: '#003580', fontWeight: 700 }}>
-        Ключевые показатели
-      </Title>
-      <Row gutter={[16, 16]} style={{ marginBottom: 8 }}>
-        <Col xs={12} sm={8} lg={6}>
-          <StatCard
-            title="Загруженность"
-            value={stats.occupancyPercent}
-            suffix="%"
-            prefix={<HomeOutlined />}
-            color={stats.occupancyPercent > 70 ? '#008234' : '#0071c2'}
-            accent={stats.occupancyPercent > 70 ? '#008234' : '#0071c2'}
-          />
-        </Col>
-        <Col xs={12} sm={8} lg={6}>
-          <StatCard
-            title="Активные брони"
-            value={stats.activeBookings}
-            prefix={<CalendarOutlined />}
-            accent="#0071c2"
-          />
-        </Col>
-        <Col xs={12} sm={8} lg={6}>
-          <StatCard
-            title="Выручка сегодня"
-            value={stats.revenueToday}
-            suffix=" ₸"
-            prefix={<DollarOutlined />}
-            color="#008234"
-            accent="#008234"
-          />
-        </Col>
-        <Col xs={12} sm={8} lg={6}>
-          <StatCard
-            title="Выручка за месяц"
-            value={stats.revenueThisMonth}
-            suffix=" ₸"
-            prefix={<DollarOutlined />}
-            color="#008234"
-            accent="#FFB700"
-          />
-        </Col>
-      </Row>
+      {/* Alert row */}
+      {((stats?.pendingMaintenance ?? 0) > 0 || (stats?.pendingHousekeeping ?? 0) > 0) && (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+          {(stats?.pendingMaintenance ?? 0) > 0 && (
+            <Link to="/maintenance" style={{ textDecoration: 'none' }}>
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Wrench size={16} color="#ef4444" />
+                <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>{stats?.pendingMaintenance} заявок на тех. обслуживание</span>
+                <ArrowRight size={14} color="#ef4444" />
+              </div>
+            </Link>
+          )}
+          {(stats?.pendingHousekeeping ?? 0) > 0 && (
+            <Link to="/housekeeping" style={{ textDecoration: 'none' }}>
+              <div style={{ background: '#fefce8', border: '1px solid #fef08a', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sparkles size={16} color="#eab308" />
+                <span style={{ fontSize: 13, color: '#a16207', fontWeight: 600 }}>{stats?.pendingHousekeeping} задач по уборке</span>
+                <ArrowRight size={14} color="#eab308" />
+              </div>
+            </Link>
+          )}
+        </div>
+      )}
 
-      {/* Today's Activity */}
-      <Title level={5} style={{ marginTop: 28, marginBottom: 16, color: '#003580', fontWeight: 700 }}>
-        Активность сегодня
-      </Title>
-      <Row gutter={[16, 16]} style={{ marginBottom: 8 }}>
-        <Col xs={12} sm={6}>
-          <StatCard
-            title="Бронирований"
-            value={stats.bookingsToday}
-            prefix={<CheckCircleOutlined />}
-            accent="#0071c2"
-          />
-        </Col>
-        <Col xs={12} sm={6}>
-          <StatCard
-            title="Заселений"
-            value={stats.checkInsToday}
-            prefix={<LoginOutlined />}
-            color="#0071c2"
-            accent="#0071c2"
-          />
-        </Col>
-        <Col xs={12} sm={6}>
-          <StatCard
-            title="Выселений"
-            value={stats.checkOutsToday}
-            prefix={<LogoutOutlined />}
-            accent="#6b7280"
-          />
-        </Col>
-        <Col xs={12} sm={6}>
-          <StatCard
-            title="Заявки на ремонт"
-            value={stats.pendingMaintenanceRequests}
-            prefix={<ToolOutlined />}
-            color={stats.pendingMaintenanceRequests > 0 ? '#cc0000' : '#008234'}
-            accent={stats.pendingMaintenanceRequests > 0 ? '#cc0000' : '#008234'}
-          />
-        </Col>
-      </Row>
+      {/* Arrivals & Departures */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <Card padding={0}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CheckCircle size={16} color="#22c55e" />
+              <span style={{ fontWeight: 700, fontSize: 14, color: '#1e293b' }}>Заезды сегодня</span>
+              <span style={{ background: '#f1f5f9', color: '#64748b', fontSize: 11, padding: '2px 7px', borderRadius: 10, fontWeight: 600 }}>{arrivals.length}</span>
+            </div>
+            <Link to="/front-desk" style={{ fontSize: 12, color: '#3b82f6', fontWeight: 600 }}>Все →</Link>
+          </div>
+          {arrivals.length === 0
+            ? <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Нет заездов на сегодня</div>
+            : arrivals.map((a) => (
+              <div key={a.bookingId} style={{ padding: '12px 20px', borderBottom: '1px solid #f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{a.guestName}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>№{a.roomNumber} · {a.nights} ноч.</div>
+                </div>
+                <StatusBadge status={a.status} />
+              </div>
+            ))}
+        </Card>
 
-      {/* Room Status */}
-      <Title level={5} style={{ marginTop: 28, marginBottom: 16, color: '#003580', fontWeight: 700 }}>
-        Статус номеров
-      </Title>
-      <Row gutter={[16, 16]} style={{ marginBottom: 28 }}>
-        <Col xs={8} sm={5}>
-          <StatCard
-            title="Свободных"
-            value={stats.totalRooms - stats.occupiedRooms}
-            accent="#008234"
-            color="#008234"
-          />
-        </Col>
-        <Col xs={8} sm={5}>
-          <StatCard
-            title="Занятых"
-            value={stats.occupiedRooms}
-            accent="#cc0000"
-            color="#cc0000"
-          />
-        </Col>
-        <Col xs={8} sm={5}>
-          <StatCard
-            title="Всего номеров"
-            value={stats.totalRooms}
-            accent="#003580"
-          />
-        </Col>
-      </Row>
-
-      {/* Today's Check-Ins & Check-Outs */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
-          <Card
-            title={
-              <span>
-                <LoginOutlined style={{ color: '#0071c2', marginRight: 8 }} />
-                Ожидаемые заезды сегодня
-              </span>
-            }
-            extra={
-              <Button
-                size="small"
-                type="link"
-                onClick={() => navigate('/bookings')}
-              >
-                Все бронирования
-              </Button>
-            }
-          >
-            <Table
-              rowKey="id"
-              size="small"
-              pagination={false}
-              dataSource={checkIns?.items ?? []}
-              columns={bookingMiniColumns}
-              locale={{ emptyText: 'Заездов сегодня нет' }}
-            />
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={12}>
-          <Card
-            title={
-              <span>
-                <LogoutOutlined style={{ color: '#6b7280', marginRight: 8 }} />
-                Текущие гости (заселены)
-              </span>
-            }
-            extra={
-              <Button
-                size="small"
-                type="link"
-                onClick={() => navigate('/bookings')}
-              >
-                Все бронирования
-              </Button>
-            }
-          >
-            <Table
-              rowKey="id"
-              size="small"
-              pagination={false}
-              dataSource={checkOuts?.items ?? []}
-              columns={bookingMiniColumns}
-              locale={{ emptyText: 'Нет заселённых гостей' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+        <Card padding={0}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Clock size={16} color="#06b6d4" />
+              <span style={{ fontWeight: 700, fontSize: 14, color: '#1e293b' }}>Выезды сегодня</span>
+              <span style={{ background: '#f1f5f9', color: '#64748b', fontSize: 11, padding: '2px 7px', borderRadius: 10, fontWeight: 600 }}>{departures.length}</span>
+            </div>
+            <Link to="/front-desk" style={{ fontSize: 12, color: '#3b82f6', fontWeight: 600 }}>Все →</Link>
+          </div>
+          {departures.length === 0
+            ? <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Нет выездов на сегодня</div>
+            : departures.map((d) => (
+              <div key={d.bookingId} style={{ padding: '12px 20px', borderBottom: '1px solid #f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{d.guestName}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>№{d.roomNumber} · до {formatDate(d.checkOutDate)}</div>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{formatCurrency(d.totalAmount)}</span>
+              </div>
+            ))}
+        </Card>
+      </div>
     </div>
   );
 }

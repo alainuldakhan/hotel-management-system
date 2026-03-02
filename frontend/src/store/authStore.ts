@@ -1,17 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { UserInfoDto } from '../types/api';
+import type { UserDto } from '../types/api';
 import { UserRole } from '../types/enums';
 
 interface AuthState {
-  user: UserInfoDto | null;
+  user: UserDto | null;
   accessToken: string | null;
   refreshToken: string | null;
-  setAuth: (user: UserInfoDto, accessToken: string, refreshToken: string) => void;
-  setTokens: (accessToken: string, refreshToken: string) => void;
-  logout: () => void;
-  isAuthenticated: () => boolean;
+  isAuthenticated: boolean;
+  setAuth: (user: UserDto, accessToken: string, refreshToken: string) => void;
+  clearAuth: () => void;
+  updateUser: (user: UserDto) => void;
   hasRole: (...roles: UserRole[]) => boolean;
+  isAdmin: () => boolean;
   isStaff: () => boolean;
 }
 
@@ -21,36 +22,37 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       accessToken: null,
       refreshToken: null,
+      isAuthenticated: false,
 
-      setAuth: (user, accessToken, refreshToken) =>
-        set({ user, accessToken, refreshToken }),
+      setAuth: (user, accessToken, refreshToken) => {
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        set({ user, accessToken, refreshToken, isAuthenticated: true });
+      },
 
-      setTokens: (accessToken, refreshToken) =>
-        set({ accessToken, refreshToken }),
+      clearAuth: () => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
+      },
 
-      logout: () =>
-        set({ user: null, accessToken: null, refreshToken: null }),
+      updateUser: (user) => set({ user }),
 
-      isAuthenticated: () => !!get().accessToken && !!get().user,
+      hasRole: (...roles) => {
+        const { user } = get();
+        return user ? roles.includes(user.role) : false;
+      },
 
-      hasRole: (...roles: UserRole[]) => {
-        const user = get().user;
-        return !!user && roles.includes(user.role);
+      isAdmin: () => {
+        const { user } = get();
+        return user ? [UserRole.Manager, UserRole.SuperAdmin].includes(user.role) : false;
       },
 
       isStaff: () => {
-        const user = get().user;
-        if (!user) return false;
-        return user.role !== UserRole.Guest;
+        const { user } = get();
+        return user ? user.role !== UserRole.Guest : false;
       },
     }),
-    {
-      name: 'hms-auth',
-      partialize: (state) => ({
-        user: state.user,
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
-      }),
-    }
+    { name: 'auth-storage', partialize: (s) => ({ user: s.user, accessToken: s.accessToken, refreshToken: s.refreshToken, isAuthenticated: s.isAuthenticated }) }
   )
 );

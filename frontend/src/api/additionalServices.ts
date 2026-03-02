@@ -1,18 +1,12 @@
-import apiClient from './client';
-import type { AdditionalServiceDto, CreateServiceRequest, UpdateServiceRequest } from '../types/api';
+import client from './client';
+import type { AdditionalServiceDto } from '../types/api';
 
 export const servicesApi = {
-  getAll: () =>
-    apiClient.get<AdditionalServiceDto[]>('/additional-services').then((r) => r.data),
-
-  getById: (id: string) =>
-    apiClient.get<AdditionalServiceDto>(`/additional-services/${id}`).then((r) => r.data),
-
-  create: (data: CreateServiceRequest) =>
-    apiClient.post<{ id: string }>('/additional-services', data).then((r) => r.data),
-
-  update: (id: string, data: UpdateServiceRequest) =>
-    apiClient.put(`/additional-services/${id}`, { id, ...data }),
-
-  delete: (id: string) => apiClient.delete(`/additional-services/${id}`),
+  getAll: () => client.get<AdditionalServiceDto[]>('/additional-services'),
+  getById: (id: string) => client.get<AdditionalServiceDto>(`/additional-services/${id}`),
+  create: (data: { name: string; description?: string; price: number }) =>
+    client.post<AdditionalServiceDto>('/additional-services', data),
+  update: (id: string, data: { name?: string; description?: string; price?: number; isActive?: boolean }) =>
+    client.put(`/additional-services/${id}`, data),
+  delete: (id: string) => client.delete(`/additional-services/${id}`),
 };

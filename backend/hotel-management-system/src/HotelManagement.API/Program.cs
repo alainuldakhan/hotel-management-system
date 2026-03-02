@@ -1,5 +1,7 @@
 using System.Text;
 using HotelManagement.API.Middleware;
+using HotelManagement.API.Services;
+using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Extensions;
 using HotelManagement.Infrastructure.Extensions;
 using HotelManagement.Infrastructure.Persistence;
@@ -18,6 +20,13 @@ builder.Host.UseSerilog((ctx, lc) => lc
 // ── Application + Infrastructure ──────────────────────────────────────────────
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// CurrentUserService — читает UserId из JWT, доступен в API-слое (AspNetCore)
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+// DataSeeder — регистрируем как Scoped сервис
+builder.Services.AddScoped<DataSeeder>();
 
 // ── JWT Authentication ────────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["JwtSettings:SecretKey"]
@@ -39,7 +48,7 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer              = builder.Configuration["JwtSettings:Issuer"],
         ValidAudience            = builder.Configuration["JwtSettings:Audience"],
         IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-        ClockSkew                = TimeSpan.Zero   // без дополнительного зазора по времени
+        ClockSkew                = TimeSpan.Zero
     };
 });
 
@@ -53,6 +62,24 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Hotel Management API", Version = "v1" });
+
+    // JWT support in Swagger UI
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
+    {
+        Name         = "Authorization",
+        Type         = Microsoft.OpenApi.SecuritySchemeType.Http,
+        Scheme       = "bearer",
+        BearerFormat = "JWT",
+        In           = Microsoft.OpenApi.ParameterLocation.Header,
+        Description  = "Enter JWT token"
+    });
+    c.AddSecurityRequirement(_ => new Microsoft.OpenApi.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer"),
+            new List<string>()
+        }
+    });
 });
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
@@ -68,23 +95,27 @@ builder.Services.AddCors(options =>
 // ─────────────────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
-// Auto-apply migrations on startup
+// Auto-apply migrations + seed data on startup
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.Migrate();
+
+    // Seed initial data (only if DB is empty)
+    var seeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
+    await seeder.SeedAsync();
 }
 
 app.UseSerilogRequestLogging();
-app.UseMiddleware<ExceptionMiddleware>();   // глобальная обработка ошибок
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseCors("FrontendPolicy");
 app.UseHttpsRedirection();
-app.UseAuthentication();   // порядок важен: сначала Authentication
-app.UseAuthorization();    // потом Authorization
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

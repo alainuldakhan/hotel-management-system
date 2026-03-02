@@ -1,29 +1,14 @@
-import apiClient from './client';
-import type {
-  DashboardStatsDto,
-  OccupancyByRoomTypeDto,
-  RevenueByPeriodDto,
-  TopGuestDto,
-} from '../types/api';
+import client from './client';
+import type { DashboardStatsDto, RevenueByPeriodDto, OccupancyByRoomTypeDto, KpiStatsDto, TopGuestDto } from '../types/api';
 
 export const analyticsApi = {
-  getDashboard: () =>
-    apiClient.get<DashboardStatsDto>('/analytics/dashboard').then((r) => r.data),
-
-  getRevenue: (from: string, to: string, groupBy = 'month') =>
-    apiClient
-      .get<RevenueByPeriodDto[]>('/analytics/revenue', { params: { from, to, groupBy } })
-      .then((r) => r.data),
-
-  getOccupancyByRoomType: (from?: string, to?: string) =>
-    apiClient
-      .get<OccupancyByRoomTypeDto[]>('/analytics/occupancy-by-room-type', {
-        params: { from, to },
-      })
-      .then((r) => r.data),
-
-  getTopGuests: (top = 10) =>
-    apiClient
-      .get<TopGuestDto[]>('/analytics/top-guests', { params: { top } })
-      .then((r) => r.data),
+  getDashboard: () => client.get<DashboardStatsDto>('/analytics/dashboard'),
+  getRevenue: (from: string, to: string, groupBy: 'day' | 'week' | 'month' = 'day') =>
+    client.get<RevenueByPeriodDto[]>('/analytics/revenue', { params: { from, to, groupBy } }),
+  getOccupancy: (from: string, to: string) =>
+    client.get<OccupancyByRoomTypeDto[]>('/analytics/occupancy', { params: { from, to } }),
+  getTopGuests: (count: number = 10) =>
+    client.get<TopGuestDto[]>('/analytics/top-guests', { params: { count } }),
+  getKpi: (from: string, to: string) =>
+    client.get<KpiStatsDto>('/analytics/kpi', { params: { from, to } }),
 };

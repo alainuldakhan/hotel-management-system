@@ -1,226 +1,144 @@
-import { Button, Card, Col, DatePicker, Row, Select, Space, Spin, Table, Typography, message } from 'antd';
-import { FilePdfOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
-import dayjs from 'dayjs';
-import { useState } from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { useEffect, useState } from 'react';
+import { TrendingUp, DollarSign, Users, BarChart2 } from 'lucide-react';
 import { analyticsApi } from '../../api/analytics';
-import { reportsApi } from '../../api/reports';
+import type { KpiStatsDto, OccupancyByRoomTypeDto, TopGuestDto } from '../../types/api';
+import { formatCurrency, formatPercent, today, addDays } from '../../utils/format';
+import PageHeader from '../../components/common/PageHeader';
+import Card from '../../components/common/Card';
 
-const { Title } = Typography;
-const { RangePicker } = DatePicker;
+export default function AnalyticsPage() {
+  const [kpi, setKpi] = useState<KpiStatsDto | null>(null);
+  const [occupancy, setOccupancy] = useState<OccupancyByRoomTypeDto[]>([]);
+  const [topGuests, setTopGuests] = useState<TopGuestDto[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const COLORS = ['#1677ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
+  // Default: last 30 days
+  const dateFrom = addDays(today(), -30);
+  const dateTo = today();
 
-export function AnalyticsPage() {
-  const [msg, contextHolder] = message.useMessage();
-  const [revenueRange, setRevenueRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs().subtract(6, 'month'),
-    dayjs(),
-  ]);
-  const [groupBy, setGroupBy] = useState<'month' | 'week' | 'day'>('month');
-  const [pdfLoading, setPdfLoading] = useState<string | null>(null);
+  useEffect(() => {
+    Promise.all([
+      analyticsApi.getKpi(dateFrom, dateTo),
+      analyticsApi.getOccupancy(dateFrom, dateTo),
+      analyticsApi.getTopGuests(8),
+    ]).then(([k, o, g]) => {
+      setKpi(k.data);
+      setOccupancy(o.data);
+      setTopGuests(g.data);
+    }).catch(console.error).finally(() => setLoading(false));
+  }, []);
 
-  const handleDownload = async (type: 'revenue' | 'daily') => {
-    setPdfLoading(type);
-    try {
-      if (type === 'revenue') {
-        await reportsApi.downloadRevenueReport(
-          revenueRange[0].format('YYYY-MM-DD'),
-          revenueRange[1].format('YYYY-MM-DD'),
-          groupBy,
-        );
-      } else {
-        await reportsApi.downloadDailyOccupancyReport(dayjs().format('YYYY-MM-DD'));
-      }
-    } catch {
-      msg.error('Ошибка при генерации PDF');
-    } finally {
-      setPdfLoading(null);
-    }
-  };
+  if (loading) return <div style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>Загрузка аналитики...</div>;
 
-  const { data: revenue = [], isLoading: revenueLoading } = useQuery({
-    queryKey: ['analytics-revenue', revenueRange, groupBy],
-    queryFn: () =>
-      analyticsApi.getRevenue(
-        revenueRange[0].format('YYYY-MM-DD'),
-        revenueRange[1].format('YYYY-MM-DD'),
-        groupBy
-      ),
-  });
-
-  const { data: occupancy = [], isLoading: occupancyLoading } = useQuery({
-    queryKey: ['analytics-occupancy'],
-    queryFn: () => analyticsApi.getOccupancyByRoomType(),
-  });
-
-  const { data: topGuests = [], isLoading: guestsLoading } = useQuery({
-    queryKey: ['analytics-top-guests'],
-    queryFn: () => analyticsApi.getTopGuests(10),
-  });
+  const kpiCards = [
+    { label: 'ADR (средний тариф)', value: kpi ? formatCurrency(kpi.adr) : '—', icon: <DollarSign size={20} color="#3b82f6" />, bg: '#eff6ff', desc: 'Средняя цена за проданный номер' },
+    { label: 'RevPAR', value: kpi ? formatCurrency(kpi.revPar) : '—', icon: <TrendingUp size={20} color="#22c55e" />, bg: '#f0fdf4', desc: 'Выручка на доступный номер' },
+    { label: 'Загруженность', value: kpi ? formatPercent(kpi.occupancyPercent) : '—', icon: <BarChart2 size={20} color="#eab308" />, bg: '#fefce8', desc: 'Средняя за период' },
+    { label: 'ALOS', value: kpi ? `${kpi.alos.toFixed(1)} ноч.` : '—', icon: <Users size={20} color="#8b5cf6" />, bg: '#f5f3ff', desc: 'Средняя длительность пребывания' },
+  ];
 
   return (
     <div>
-      {contextHolder}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          Аналитика
-        </Title>
-        <Space>
-          <Button
-            icon={<FilePdfOutlined />}
-            loading={pdfLoading === 'daily'}
-            onClick={() => handleDownload('daily')}
-          >
-            Отчёт за сегодня
-          </Button>
-          <Button
-            type="primary"
-            icon={<FilePdfOutlined />}
-            loading={pdfLoading === 'revenue'}
-            onClick={() => handleDownload('revenue')}
-          >
-            Экспорт выручки
-          </Button>
-        </Space>
+      <PageHeader
+        title="Аналитика"
+        subtitle={`Период: последние 30 дней`}
+      />
+
+      {/* KPI Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+        {kpiCards.map((c) => (
+          <Card key={c.label}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {c.icon}
+              </div>
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{c.value}</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{c.label}</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{c.desc}</div>
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
 
-      {/* Revenue Chart */}
-      <Card
-        title="Выручка по периодам"
-        extra={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Select
-              value={groupBy}
-              onChange={setGroupBy}
-              style={{ width: 120 }}
-              options={[
-                { value: 'day', label: 'По дням' },
-                { value: 'week', label: 'По неделям' },
-                { value: 'month', label: 'По месяцам' },
-              ]}
-            />
-            <RangePicker
-              value={revenueRange}
-              onChange={(v) => v && setRevenueRange(v as [dayjs.Dayjs, dayjs.Dayjs])}
-              format="DD.MM.YYYY"
-            />
+      {/* Forward-looking stats */}
+      {kpi && (
+        <Card style={{ marginBottom: 24 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 16 }}>Загрузка на горизонте</h3>
+          <div style={{ display: 'flex', gap: 32 }}>
+            {[
+              { label: '30 дней', value: kpi.roomsOnBooks30Days },
+              { label: '60 дней', value: kpi.roomsOnBooks60Days },
+              { label: '90 дней', value: kpi.roomsOnBooks90Days },
+            ].map((item) => (
+              <div key={item.label} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#3b82f6' }}>{item.value}</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>забронировано на {item.label}</div>
+              </div>
+            ))}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#1e293b' }}>{kpi.totalRoomNightsSold}</div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>ночей продано (период)</div>
+            </div>
           </div>
-        }
-        style={{ marginBottom: 16 }}
-      >
-        {revenueLoading ? (
-          <Spin />
-        ) : (
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={revenue}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="period" />
-              <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
-              <Tooltip
-                formatter={(v) => [`${Number(v).toLocaleString()} ₸`, 'Выручка']}
-              />
-              <Legend />
-              <Bar dataKey="revenue" name="Выручка (₸)" fill="#1677ff" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="bookingsCount" name="Бронирований" fill="#52c41a" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </Card>
+        </Card>
+      )}
 
-      <Row gutter={[16, 16]}>
-        {/* Occupancy by Room Type */}
-        <Col xs={24} lg={12}>
-          <Card title="Загруженность по типам номеров">
-            {occupancyLoading ? (
-              <Spin />
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie
-                    data={occupancy}
-                    dataKey="averageOccupancyPercent"
-                    nameKey="roomTypeName"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={(entry) =>
-                      `${entry.name}: ${Number(entry.value).toFixed(0)}%`
-                    }
-                  >
-                    {occupancy.map((_, index) => (
-                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v) => [`${Number(v).toFixed(1)}%`, 'Загруженность']} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </Card>
-        </Col>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        {/* Occupancy by room type */}
+        <Card padding={0}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Загрузка по типам номеров</h3>
+          </div>
+          {occupancy.length === 0 ? (
+            <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Нет данных</div>
+          ) : (
+            occupancy.map((o) => (
+              <div key={o.roomTypeId} style={{ padding: '14px 20px', borderBottom: '1px solid #f8fafc' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{o.roomTypeName}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#3b82f6' }}>{formatPercent(o.occupancyPercent)}</span>
+                </div>
+                {/* Progress bar */}
+                <div style={{ height: 6, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min(o.occupancyPercent, 100)}%`, background: o.occupancyPercent > 70 ? '#22c55e' : o.occupancyPercent > 40 ? '#eab308' : '#ef4444', borderRadius: 3, transition: 'width 0.5s' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: '#94a3b8' }}>
+                  <span>ADR: {formatCurrency(o.adr)}</span>
+                  <span>Выручка: {formatCurrency(o.totalRevenue)}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </Card>
 
-        {/* Room Type Revenue */}
-        <Col xs={24} lg={12}>
-          <Card title="Выручка по типам номеров">
-            {occupancyLoading ? (
-              <Spin />
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={occupancy} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
-                  <YAxis type="category" dataKey="roomTypeName" width={90} />
-                  <Tooltip formatter={(v) => [`${Number(v).toLocaleString()} ₸`, 'Выручка']} />
-                  <Bar dataKey="totalRevenue" name="Выручка" fill="#722ed1" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Top Guests */}
-      <Card title="Топ гостей" style={{ marginTop: 16 }}>
-        <Table
-          rowKey="guestId"
-          loading={guestsLoading}
-          pagination={false}
-          size="middle"
-          dataSource={topGuests}
-          columns={[
-            { title: '#', key: 'index', render: (_, __, i) => i + 1, width: 50 },
-            { title: 'Гость', dataIndex: 'fullName', key: 'fullName' },
-            { title: 'Email', dataIndex: 'email', key: 'email' },
-            { title: 'Броней', dataIndex: 'totalBookings', key: 'totalBookings', width: 90 },
-            { title: 'Ночей', dataIndex: 'totalNights', key: 'totalNights', width: 90 },
-            {
-              title: 'Потрачено',
-              dataIndex: 'totalSpent',
-              key: 'totalSpent',
-              render: (v: number) => `${v.toLocaleString()} ₸`,
-            },
-            {
-              title: 'Последний визит',
-              dataIndex: 'lastVisit',
-              key: 'lastVisit',
-              render: (v: string) => dayjs(v).format('DD.MM.YYYY'),
-            },
-          ]}
-        />
-      </Card>
+        {/* Top guests */}
+        <Card padding={0}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Топ гостей</h3>
+          </div>
+          {topGuests.length === 0 ? (
+            <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Нет данных</div>
+          ) : (
+            topGuests.map((g, i) => (
+              <div key={g.guestId} style={{ padding: '12px 20px', borderBottom: '1px solid #f8fafc', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: i < 3 ? '#fefce8' : '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: i < 3 ? '#a16207' : '#94a3b8', flexShrink: 0 }}>
+                  {i + 1}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{g.guestName}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{g.guestEmail} · {g.totalBookings} бронир.</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{formatCurrency(g.totalSpend)}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>итого</div>
+                </div>
+              </div>
+            ))
+          )}
+        </Card>
+      </div>
     </div>
   );
 }

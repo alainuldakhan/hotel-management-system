@@ -14,4 +14,9 @@ public interface IAnalyticsQueryService
     Task<IEnumerable<OccupancyByRoomTypeDto>> GetOccupancyByRoomTypeAsync(
         DateTime from, DateTime to, CancellationToken ct = default);
     Task<IEnumerable<TopGuestDto>> GetTopGuestsAsync(int count = 10, CancellationToken ct = default);
+
+    /// <summary>
+    /// KPI отеля за период: ADR, RevPAR, ALOS, OccupancyPercent, Rooms on Books.
+    /// </summary>
+    Task<HotelKpiDto> GetKpiStatsAsync(DateTime from, DateTime to, CancellationToken ct = default);
 }

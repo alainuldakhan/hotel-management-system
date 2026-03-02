@@ -1,4 +1,4 @@
-using Dapper;
+﻿using Dapper;
 using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Queries;
 using HotelManagement.Application.DTOs;
@@ -279,6 +279,121 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
         return await QueryAsync<BookingListItemDto>(sql, new { Tomorrow = tomorrow }, ct);
     }
 
+    // ── Front Desk ────────────────────────────────────────────────────────────
+
+    public async Task<IEnumerable<ArrivalItemDto>> GetArrivalsAsync(
+        DateTime date, CancellationToken ct = default)
+    {
+        var sql = """
+            SELECT
+                b.id                                                AS BookingId,
+                u.first_name || '' '' || u.last_name               AS GuestFullName,
+                u.email                                             AS GuestEmail,
+                u.phone_number                                      AS GuestPhone,
+                r.number                                            AS RoomNumber,
+                rt.name                                             AS RoomTypeName,
+                b.check_in_date                                     AS CheckInDate,
+                b.check_out_date                                    AS CheckOutDate,
+                DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
+                b.guests_count                                      AS GuestsCount,
+                b.total_amount                                      AS TotalAmount,
+                b.status::text                                      AS Status,
+                b.special_requests                                  AS SpecialRequests
+            FROM bookings b
+            JOIN rooms r       ON r.id  = b.room_id
+            JOIN room_types rt ON rt.id = r.room_type_id
+            JOIN users u       ON u.id  = b.guest_id
+            WHERE b.check_in_date::date = @Date
+              AND b.status IN (2, 3)
+            ORDER BY b.check_in_date, r.number
+            """;
+        return await QueryAsync<ArrivalItemDto>(sql, new { Date = date.Date }, ct);
+    }
+
+    public async Task<IEnumerable<DepartureItemDto>> GetDeparturesAsync(
+        DateTime date, CancellationToken ct = default)
+    {
+        var sql = """
+            SELECT
+                b.id                                                AS BookingId,
+                u.first_name || '' '' || u.last_name               AS GuestFullName,
+                u.email                                             AS GuestEmail,
+                r.number                                            AS RoomNumber,
+                rt.name                                             AS RoomTypeName,
+                b.check_in_date                                     AS CheckInDate,
+                b.check_out_date                                    AS CheckOutDate,
+                DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
+                b.total_amount                                      AS TotalAmount,
+                b.paid_amount                                       AS PaidAmount,
+                b.payment_status::text                              AS PaymentStatus
+            FROM bookings b
+            JOIN rooms r       ON r.id  = b.room_id
+            JOIN room_types rt ON rt.id = r.room_type_id
+            JOIN users u       ON u.id  = b.guest_id
+            WHERE b.check_out_date::date = @Date
+              AND b.status = 3
+            ORDER BY b.check_out_date, r.number
+            """;
+        return await QueryAsync<DepartureItemDto>(sql, new { Date = date.Date }, ct);
+    }
+
+    public async Task<IEnumerable<InHouseGuestDto>> GetInHouseGuestsAsync(CancellationToken ct = default)
+    {
+        var sql = """
+            SELECT
+                b.id                                                AS BookingId,
+                u.first_name || '' '' || u.last_name               AS GuestFullName,
+                u.email                                             AS GuestEmail,
+                u.phone_number                                      AS GuestPhone,
+                r.number                                            AS RoomNumber,
+                rt.name                                             AS RoomTypeName,
+                b.check_in_date                                     AS CheckInDate,
+                b.check_out_date                                    AS CheckOutDate,
+                DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
+                b.actual_check_in                                   AS ActualCheckIn,
+                b.total_amount                                      AS TotalAmount,
+                b.payment_status::text                              AS PaymentStatus
+            FROM bookings b
+            JOIN rooms r       ON r.id  = b.room_id
+            JOIN room_types rt ON rt.id = r.room_type_id
+            JOIN users u       ON u.id  = b.guest_id
+            WHERE b.status = 3
+            ORDER BY r.number
+            """;
+        return await QueryAsync<InHouseGuestDto>(sql, ct: ct);
+    }
+
+    public async Task<IEnumerable<ForecastDayDto>> GetForecastAsync(
+        int days, CancellationToken ct = default)
+    {
+        var sql = """
+            WITH date_series AS (
+                SELECT generate_series(
+                    CURRENT_DATE,
+                    CURRENT_DATE + (@Days - 1) * INTERVAL '1 day',
+                    '1 day'::interval
+                )::date AS forecast_date
+            ),
+            room_count AS (
+                SELECT COUNT(*) AS total FROM rooms WHERE is_active = true
+            )
+            SELECT
+                ds.forecast_date                                    AS Date,
+                COUNT(b.id)::int                                    AS BookedRooms,
+                rc.total::int                                       AS TotalRooms,
+                ROUND(COUNT(b.id) * 100.0 / NULLIF(rc.total, 0), 2) AS OccupancyPercent,
+                COALESCE(SUM(b.total_amount /
+                    NULLIF(DATE_PART('day', b.check_out_date - b.check_in_date), 0)), 0) AS ProjectedRevenue
+            FROM date_series ds
+            CROSS JOIN room_count rc
+            LEFT JOIN bookings b ON b.status IN (2, 3)
+                AND b.check_in_date <= ds.forecast_date
+                AND b.check_out_date > ds.forecast_date
+            GROUP BY ds.forecast_date, rc.total
+            ORDER BY ds.forecast_date
+            """;
+        return await QueryAsync<ForecastDayDto>(sql, new { Days = days }, ct);
+    }
     private class RoomGridRaw
     {
         public Guid RoomId { get; init; }

@@ -1,4 +1,6 @@
 using FluentValidation;
+using HotelManagement.Application.Common;
+using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Repositories;
 using HotelManagement.Domain.Entities;
 using HotelManagement.Domain.Exceptions;
@@ -53,11 +55,16 @@ public class UpdateRoomTypeCommandHandler : IRequestHandler<UpdateRoomTypeComman
 {
     private readonly IRoomTypeRepository _roomTypeRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICacheService _cache;
 
-    public UpdateRoomTypeCommandHandler(IRoomTypeRepository roomTypeRepository, IUnitOfWork unitOfWork)
+    public UpdateRoomTypeCommandHandler(
+        IRoomTypeRepository roomTypeRepository,
+        IUnitOfWork unitOfWork,
+        ICacheService cache)
     {
         _roomTypeRepository = roomTypeRepository;
         _unitOfWork = unitOfWork;
+        _cache = cache;
     }
 
     public async Task Handle(UpdateRoomTypeCommand request, CancellationToken cancellationToken)
@@ -79,5 +86,7 @@ public class UpdateRoomTypeCommandHandler : IRequestHandler<UpdateRoomTypeComman
 
         _roomTypeRepository.Update(roomType);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await _cache.RemoveAsync(CacheKeys.RoomTypesAll);
     }
 }

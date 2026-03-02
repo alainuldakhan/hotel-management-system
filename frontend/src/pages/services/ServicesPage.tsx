@@ -1,156 +1,127 @@
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
-import {
-  Button,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Table,
-  Tag,
-  Typography,
-  message,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { servicesApi } from '../../api/additionalServices';
 import type { AdditionalServiceDto } from '../../types/api';
+import { formatCurrency } from '../../utils/format';
+import PageHeader from '../../components/common/PageHeader';
+import Modal from '../../components/common/Modal';
+import Button from '../../components/common/Button';
+import Card from '../../components/common/Card';
 
-const { Title } = Typography;
+export default function ServicesPage() {
+  const [items, setItems] = useState<AdditionalServiceDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editItem, setEditItem] = useState<AdditionalServiceDto | null>(null);
+  const [form, setForm] = useState({ name: '', description: '', price: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-export function ServicesPage() {
-  const qc = useQueryClient();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form] = Form.useForm();
-  const [msg, contextHolder] = message.useMessage();
-
-  const { data: services = [], isLoading } = useQuery({
-    queryKey: ['services'],
-    queryFn: servicesApi.getAll,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: servicesApi.create,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['services'] });
-      closeModal();
-      msg.success('Услуга создана');
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof servicesApi.update>[1] }) =>
-      servicesApi.update(id, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['services'] });
-      closeModal();
-      msg.success('Услуга обновлена');
-    },
-  });
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingId(null);
-    form.resetFields();
+  const load = async () => {
+    setLoading(true);
+    try { const { data } = await servicesApi.getAll(); setItems(data); } finally { setLoading(false); }
   };
 
-  const onSave = async () => {
-    const values = await form.validateFields();
-    if (editingId) {
-      updateMutation.mutate({ id: editingId, data: values });
-    } else {
-      createMutation.mutate(values);
-    }
+  useEffect(() => { load(); }, []);
+
+  const openCreate = () => { setForm({ name: '', description: '', price: '' }); setError(''); setCreateOpen(true); };
+  const openEdit = (item: AdditionalServiceDto) => {
+    setForm({ name: item.name, description: item.description ?? '', price: String(item.price) });
+    setError(''); setEditItem(item);
   };
 
-  const columns: ColumnsType<AdditionalServiceDto> = [
-    { title: 'Название', dataIndex: 'name', key: 'name' },
-    { title: 'Описание', dataIndex: 'description', key: 'description', ellipsis: true },
-    {
-      title: 'Цена',
-      dataIndex: 'price',
-      key: 'price',
-      render: (v: number) => `${v.toLocaleString()} ₸`,
-    },
-    {
-      title: 'Статус',
-      dataIndex: 'isActive',
-      key: 'isActive',
-      render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Активна' : 'Неактивна'}</Tag>,
-    },
-    {
-      title: '',
-      key: 'actions',
-      width: 60,
-      render: (_, record) => (
-        <Button
-          size="small"
-          icon={<EditOutlined />}
-          onClick={() => {
-            setEditingId(record.id);
-            form.setFieldsValue({
-              name: record.name,
-              description: record.description,
-              price: record.price,
-            });
-            setModalOpen(true);
-          }}
-        />
-      ),
-    },
-  ];
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault(); setError(''); setSaving(true);
+    const payload = { name: form.name, description: form.description || undefined, price: parseFloat(form.price) };
+    try {
+      if (editItem) await servicesApi.update(editItem.id, payload);
+      else await servicesApi.create(payload);
+      setCreateOpen(false); setEditItem(null); load();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg || 'Ошибка сохранения');
+    } finally { setSaving(false); }
+  };
+
+  const handleToggleActive = async (item: AdditionalServiceDto) => {
+    await servicesApi.update(item.id, { isActive: !item.isActive });
+    load();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Удалить услугу?')) return;
+    await servicesApi.delete(id); load();
+  };
+
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none', color: '#1e293b', background: '#fff' };
+  const labelStyle: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 5 };
+
+  const FormContent = (
+    <form onSubmit={handleSave}>
+      {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', color: '#dc2626', fontSize: 13, marginBottom: 14 }}>{error}</div>}
+      <div style={{ marginBottom: 14 }}>
+        <label style={labelStyle}>Название *</label>
+        <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} style={inputStyle} placeholder="Завтрак, Трансфер, СПА..." />
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <label style={labelStyle}>Цена (₸) *</label>
+        <input required type="number" min={0} step={0.01} value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} style={inputStyle} placeholder="5000" />
+      </div>
+      <div style={{ marginBottom: 20 }}>
+        <label style={labelStyle}>Описание</label>
+        <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} style={{ ...inputStyle, height: 64, resize: 'vertical' }} placeholder="Описание услуги..." />
+      </div>
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        <Button variant="secondary" type="button" onClick={() => { setCreateOpen(false); setEditItem(null); }}>Отмена</Button>
+        <Button type="submit" loading={saving}>{editItem ? 'Сохранить' : 'Создать'}</Button>
+      </div>
+    </form>
+  );
+
+  const activeItems = items.filter((i) => i.isActive);
+  const inactiveItems = items.filter((i) => !i.isActive);
 
   return (
     <div>
-      {contextHolder}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          Дополнительные услуги
-        </Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => {
-            setEditingId(null);
-            form.resetFields();
-            setModalOpen(true);
-          }}
-        >
-          Добавить услугу
-        </Button>
-      </div>
-
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={services}
-        loading={isLoading}
-        pagination={false}
-        size="middle"
+      <PageHeader
+        title="Дополнительные услуги"
+        subtitle={`${activeItems.length} активных · ${inactiveItems.length} неактивных`}
+        action={<Button icon={<Plus size={16} />} onClick={openCreate}>Добавить услугу</Button>}
       />
 
-      <Modal
-        title={editingId ? 'Редактировать услугу' : 'Новая услуга'}
-        open={modalOpen}
-        onOk={onSave}
-        onCancel={closeModal}
-        confirmLoading={createMutation.isPending || updateMutation.isPending}
-        okText="Сохранить"
-        cancelText="Отмена"
-      >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="Название" rules={[{ required: true }]}>
-            <Input placeholder="Завтрак, Трансфер, СПА..." />
-          </Form.Item>
-          <Form.Item name="description" label="Описание" rules={[{ required: true }]}>
-            <Input.TextArea rows={3} />
-          </Form.Item>
-          <Form.Item name="price" label="Цена (₸)" rules={[{ required: true }]}>
-            <InputNumber min={1} style={{ width: '100%' }} />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 48, color: '#94a3b8' }}>Загрузка...</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+          {items.map((item) => (
+            <Card key={item.id} style={{ opacity: item.isActive ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{item.name}</h3>
+                <span style={{ fontSize: 16, fontWeight: 800, color: item.isActive ? '#1e293b' : '#94a3b8' }}>
+                  {formatCurrency(item.price)}
+                </span>
+              </div>
+
+              {item.description && (
+                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12, lineHeight: 1.5 }}>{item.description}</p>
+              )}
+
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: 12, marginTop: 12, alignItems: 'center' }}>
+                <button onClick={() => handleToggleActive(item)} title={item.isActive ? 'Деактивировать' : 'Активировать'} style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: item.isActive ? '#22c55e' : '#94a3b8', fontWeight: 600 }}>
+                  {item.isActive ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                  {item.isActive ? 'Активна' : 'Неактивна'}
+                </button>
+                <div style={{ flex: 1 }} />
+                <Button size="sm" variant="secondary" icon={<Edit2 size={13} />} onClick={() => openEdit(item)}>Изменить</Button>
+                <Button size="sm" variant="danger" icon={<Trash2 size={13} />} onClick={() => handleDelete(item.id)}>Удалить</Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Добавить услугу">{FormContent}</Modal>
+      <Modal open={!!editItem} onClose={() => setEditItem(null)} title={`Изменить: ${editItem?.name}`}>{FormContent}</Modal>
     </div>
   );
 }

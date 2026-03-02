@@ -1,16 +1,16 @@
-import apiClient from './client';
-import type { UserListItemDto } from '../types/api';
-import type { UserRole } from '../types/enums';
+import client from './client';
+import type { UserDto, PagedResult } from '../types/api';
 
 export const usersApi = {
-  getAll: () =>
-    apiClient.get<UserListItemDto[]>('/users').then((r) => r.data),
-
-  getById: (id: string) =>
-    apiClient.get<UserListItemDto>(`/users/${id}`).then((r) => r.data),
-
-  updateRole: (id: string, role: UserRole) =>
-    apiClient.patch(`/users/${id}/role`, role, {
-      headers: { 'Content-Type': 'application/json' },
-    }),
+  getAll: (params?: { page?: number; pageSize?: number; role?: string; search?: string }) =>
+    client.get<PagedResult<UserDto>>('/users', { params }),
+  getById: (id: string) => client.get<UserDto>(`/users/${id}`),
+  update: (id: string, data: { firstName?: string; lastName?: string; phone?: string }) =>
+    client.put(`/users/${id}`, data),
+  deactivate: (id: string) => client.post(`/users/${id}/deactivate`),
+  activate: (id: string) => client.post(`/users/${id}/activate`),
+  flagDnr: (id: string, reason: string) => client.post(`/users/${id}/dnr`, { reason }),
+  unflagDnr: (id: string) => client.delete(`/users/${id}/dnr`),
+  changePassword: (id: string, data: { currentPassword: string; newPassword: string }) =>
+    client.post(`/users/${id}/change-password`, data),
 };

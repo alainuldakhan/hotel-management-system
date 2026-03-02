@@ -1,339 +1,140 @@
-import {
-  CalendarOutlined,
-  CloseOutlined,
-  EditOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  SaveOutlined,
-  StarOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
-import {
-  Avatar,
-  Button,
-  Card,
-  Col,
-  Descriptions,
-  Form,
-  Input,
-  Modal,
-  Rate,
-  Row,
-  Spin,
-  Statistic,
-  Table,
-  Tag,
-  Typography,
-  message,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import dayjs from 'dayjs';
 import { useState } from 'react';
-import { profileApi, type UpdateProfilePayload } from '../../api/profile';
-import { bookingsApi } from '../../api/bookings';
-import { reviewsApi, type CreateReviewPayload } from '../../api/reviews';
-import { BookingStatusBadge } from '../../components/common/StatusBadge';
-import type { BookingListItemDto } from '../../types/api';
-import { BookingStatus } from '../../types/enums';
-
-const { Title, Text } = Typography;
+import { User, Lock, Save } from 'lucide-react';
+import { profileApi } from '../../api/profile';
+import { useAuthStore } from '../../store/authStore';
+import PageHeader from '../../components/common/PageHeader';
+import Card from '../../components/common/Card';
+import Button from '../../components/common/Button';
 
 const ROLE_LABELS: Record<string, string> = {
-  Guest: 'Гость',
-  Receptionist: 'Ресепшн',
-  HousekeepingStaff: 'Горничная',
-  MaintenanceStaff: 'Техник',
-  Manager: 'Менеджер',
-  SuperAdmin: 'Администратор',
+  Guest: 'Гость', Receptionist: 'Ресепшионист', HousekeepingStaff: 'Персонал уборки',
+  MaintenanceStaff: 'Технический персонал', Manager: 'Менеджер', SuperAdmin: 'Суперадмин',
 };
 
-const ROLE_COLORS: Record<string, string> = {
-  Guest: 'default',
-  Receptionist: 'blue',
-  HousekeepingStaff: 'purple',
-  MaintenanceStaff: 'orange',
-  Manager: 'green',
-  SuperAdmin: 'red',
-};
+export default function ProfilePage() {
+  const { user, updateUser } = useAuthStore();
+  const [profileForm, setProfileForm] = useState({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '', phone: user?.phone ?? '' });
+  const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '', confirm: '' });
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPwd, setSavingPwd] = useState(false);
+  const [profileMsg, setProfileMsg] = useState('');
+  const [pwdMsg, setPwdMsg] = useState('');
+  const [pwdError, setPwdError] = useState('');
 
-export function ProfilePage() {
-  const [msg, contextHolder] = message.useMessage();
-  const [editing, setEditing] = useState(false);
-  const [reviewModal, setReviewModal] = useState<BookingListItemDto | null>(null);
-  const [form] = Form.useForm();
-  const [reviewForm] = Form.useForm();
-  const queryClient = useQueryClient();
-
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ['profile'],
-    queryFn: profileApi.getProfile,
-  });
-
-  const { data: myBookings } = useQuery({
-    queryKey: ['my-bookings'],
-    queryFn: () => bookingsApi.getMy(),
-    enabled: profile?.role === 'Guest',
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (values: UpdateProfilePayload) => profileApi.updateProfile(values),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
-      setEditing(false);
-      msg.success('Профиль обновлён');
-    },
-    onError: () => msg.error('Ошибка сохранения'),
-  });
-
-  const createReviewMutation = useMutation({
-    mutationFn: (payload: CreateReviewPayload) => reviewsApi.create(payload),
-    onSuccess: () => {
-      setReviewModal(null);
-      reviewForm.resetFields();
-      msg.success('Отзыв опубликован. Спасибо!');
-    },
-    onError: () => msg.error('Не удалось опубликовать отзыв'),
-  });
-
-  if (isLoading || !profile) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
-
-  const initials = `${profile.firstName[0]}${profile.lastName[0]}`.toUpperCase();
-
-  const handleEdit = () => {
-    form.setFieldsValue({
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      phoneNumber: profile.phoneNumber ?? '',
-    });
-    setEditing(true);
+  const handleProfileSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    setProfileMsg('');
+    try {
+      const { data } = await profileApi.update({ firstName: profileForm.firstName, lastName: profileForm.lastName, phone: profileForm.phone || undefined });
+      updateUser(data);
+      setProfileMsg('Профиль успешно обновлён');
+    } catch { setProfileMsg('Ошибка сохранения'); }
+    finally { setSavingProfile(false); }
   };
 
-  const bookingColumns: ColumnsType<BookingListItemDto> = [
-    {
-      title: 'Номер',
-      dataIndex: 'roomNumber',
-      key: 'roomNumber',
-      width: 90,
-      render: (v: string) => `№${v}`,
-    },
-    { title: 'Тип', dataIndex: 'roomTypeName', key: 'roomTypeName' },
-    {
-      title: 'Заезд',
-      dataIndex: 'checkInDate',
-      key: 'checkInDate',
-      width: 110,
-      render: (v: string) => dayjs(v).format('DD.MM.YYYY'),
-    },
-    {
-      title: 'Выезд',
-      dataIndex: 'checkOutDate',
-      key: 'checkOutDate',
-      width: 110,
-      render: (v: string) => dayjs(v).format('DD.MM.YYYY'),
-    },
-    {
-      title: 'Статус',
-      dataIndex: 'status',
-      key: 'status',
-      render: (s: BookingStatus) => <BookingStatusBadge status={s} />,
-    },
-    {
-      title: 'Сумма',
-      dataIndex: 'totalAmount',
-      key: 'totalAmount',
-      render: (v: number) => `${v.toLocaleString()} ₸`,
-    },
-    {
-      title: '',
-      key: 'review',
-      width: 120,
-      render: (_, record) =>
-        record.status === BookingStatus.CheckedOut ? (
-          <Button
-            size="small"
-            icon={<StarOutlined />}
-            onClick={() => {
-              reviewForm.resetFields();
-              setReviewModal(record);
-            }}
-          >
-            Отзыв
-          </Button>
-        ) : null,
-    },
-  ];
+  const handlePwdSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pwdForm.newPassword !== pwdForm.confirm) { setPwdError('Пароли не совпадают'); return; }
+    setSavingPwd(true);
+    setPwdMsg('');
+    setPwdError('');
+    try {
+      await profileApi.changePassword({ currentPassword: pwdForm.currentPassword, newPassword: pwdForm.newPassword });
+      setPwdMsg('Пароль успешно изменён');
+      setPwdForm({ currentPassword: '', newPassword: '', confirm: '' });
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setPwdError(msg || 'Ошибка смены пароля');
+    } finally { setSavingPwd(false); }
+  };
+
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 14px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, outline: 'none', color: '#1e293b', transition: 'border-color 0.15s' };
+  const labelStyle: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 6 };
+  const focus = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.1)'; };
+  const blur = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; };
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      {contextHolder}
+    <div style={{ maxWidth: 680, margin: '0 auto' }}>
+      <PageHeader title="Профиль" subtitle="Управление личными данными и безопасностью" />
 
-      {/* ── Header Card ─────────────────────────────────────────── */}
-      <Card style={{ marginBottom: 24 }}>
-        <Row gutter={24} align="middle">
-          <Col>
-            <Avatar size={80} style={{ background: '#1677ff', fontSize: 28, fontWeight: 700 }}>
-              {initials}
-            </Avatar>
-          </Col>
-          <Col flex="auto">
-            <Title level={4} style={{ margin: 0 }}>
-              {profile.firstName} {profile.lastName}
-            </Title>
-            <Text type="secondary">
-              <MailOutlined style={{ marginRight: 6 }} />
-              {profile.email}
-            </Text>
-            <br />
-            <Tag color={ROLE_COLORS[profile.role] ?? 'default'} style={{ marginTop: 8 }}>
-              {ROLE_LABELS[profile.role] ?? profile.role}
-            </Tag>
-          </Col>
-          <Col>
-            {!editing && (
-              <Button icon={<EditOutlined />} onClick={handleEdit}>
-                Редактировать
-              </Button>
-            )}
-          </Col>
-        </Row>
+      {/* Avatar row */}
+      <Card style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#3b82f6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, flexShrink: 0 }}>
+            {user?.firstName[0]}{user?.lastName[0]}
+          </div>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#1e293b' }}>{user?.fullName}</div>
+            <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>{user?.email}</div>
+            <div style={{ marginTop: 6 }}>
+              <span style={{ padding: '3px 10px', background: '#eff6ff', borderRadius: 4, fontSize: 12, fontWeight: 600, color: '#1d4ed8' }}>
+                {ROLE_LABELS[user?.role ?? ''] ?? user?.role}
+              </span>
+              {user?.isDnr && <span style={{ marginLeft: 8, padding: '3px 10px', background: '#fef2f2', borderRadius: 4, fontSize: 12, fontWeight: 600, color: '#dc2626' }}>⚠ DNR</span>}
+            </div>
+          </div>
+        </div>
       </Card>
 
-      <Row gutter={24}>
-        {/* ── Left: Profile Details / Edit Form ─────────────────── */}
-        <Col xs={24} md={14}>
-          <Card title="Личные данные" style={{ marginBottom: 24 }}>
-            {editing ? (
-              <Form form={form} layout="vertical" onFinish={(v) => updateMutation.mutate(v)}>
-                <Form.Item name="firstName" label="Имя" rules={[{ required: true }]}>
-                  <Input prefix={<UserOutlined />} />
-                </Form.Item>
-                <Form.Item name="lastName" label="Фамилия" rules={[{ required: true }]}>
-                  <Input prefix={<UserOutlined />} />
-                </Form.Item>
-                <Form.Item name="phoneNumber" label="Телефон">
-                  <Input prefix={<PhoneOutlined />} placeholder="+7 (000) 000-00-00" />
-                </Form.Item>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    htmlType="submit"
-                    loading={updateMutation.isPending}
-                  >
-                    Сохранить
-                  </Button>
-                  <Button
-                    icon={<CloseOutlined />}
-                    onClick={() => { setEditing(false); form.resetFields(); }}
-                  >
-                    Отмена
-                  </Button>
-                </div>
-              </Form>
-            ) : (
-              <Descriptions column={1} size="small">
-                <Descriptions.Item label="Имя">{profile.firstName}</Descriptions.Item>
-                <Descriptions.Item label="Фамилия">{profile.lastName}</Descriptions.Item>
-                <Descriptions.Item label="Email">{profile.email}</Descriptions.Item>
-                <Descriptions.Item label="Телефон">
-                  {profile.phoneNumber ?? <Text type="secondary">—</Text>}
-                </Descriptions.Item>
-                <Descriptions.Item label="Дата регистрации">
-                  <CalendarOutlined style={{ marginRight: 4 }} />
-                  {dayjs(profile.createdAt).format('DD.MM.YYYY')}
-                </Descriptions.Item>
-                {profile.lastBookingDate && (
-                  <Descriptions.Item label="Последнее бронирование">
-                    {dayjs(profile.lastBookingDate).format('DD.MM.YYYY')}
-                  </Descriptions.Item>
-                )}
-              </Descriptions>
-            )}
-          </Card>
-        </Col>
+      {/* Profile form */}
+      <Card style={{ marginBottom: 20 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <User size={16} color="#3b82f6" /> Личные данные
+        </h3>
+        <form onSubmit={handleProfileSave}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+            <div>
+              <label style={labelStyle}>Имя</label>
+              <input value={profileForm.firstName} onChange={(e) => setProfileForm((f) => ({ ...f, firstName: e.target.value }))} style={inputStyle} onFocus={focus} onBlur={blur} />
+            </div>
+            <div>
+              <label style={labelStyle}>Фамилия</label>
+              <input value={profileForm.lastName} onChange={(e) => setProfileForm((f) => ({ ...f, lastName: e.target.value }))} style={inputStyle} onFocus={focus} onBlur={blur} />
+            </div>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Email</label>
+            <input value={user?.email ?? ''} disabled style={{ ...inputStyle, background: '#f8fafc', color: '#94a3b8', cursor: 'not-allowed' }} />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={labelStyle}>Телефон</label>
+            <input value={profileForm.phone} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} style={inputStyle} onFocus={focus} onBlur={blur} placeholder="+7 700 000 0000" />
+          </div>
+          {profileMsg && <div style={{ fontSize: 13, color: '#22c55e', marginBottom: 12, fontWeight: 600 }}>✓ {profileMsg}</div>}
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button type="submit" loading={savingProfile} icon={<Save size={15} />}>Сохранить</Button>
+          </div>
+        </form>
+      </Card>
 
-        {/* ── Right: Stats ──────────────────────────────────────── */}
-        <Col xs={24} md={10}>
-          <Card style={{ marginBottom: 24 }}>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Statistic title="Всего броней" value={profile.totalBookings} suffix="шт." />
-              </Col>
-              <Col span={12}>
-                <Statistic title="Потрачено" value={profile.totalSpent} precision={0} suffix="₸" />
-              </Col>
-            </Row>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* ── Booking History (Guest only) ─────────────────────────── */}
-      {profile.role === 'Guest' && myBookings && myBookings.length > 0 && (
-        <Card
-          title="История бронирований"
-          extra={
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Нажмите «Отзыв» для выселенных бронирований
-            </Text>
-          }
-        >
-          <Table
-            rowKey="id"
-            size="small"
-            pagination={{ pageSize: 10, showTotal: (t) => `Всего: ${t}` }}
-            dataSource={myBookings}
-            columns={bookingColumns}
-          />
-        </Card>
-      )}
-
-      {/* ── Review Modal ─────────────────────────────────────────── */}
-      <Modal
-        title={
-          reviewModal
-            ? `Отзыв — №${reviewModal.roomNumber} (${reviewModal.roomTypeName})`
-            : 'Оставить отзыв'
-        }
-        open={!!reviewModal}
-        onOk={() =>
-          reviewForm.validateFields().then((v) =>
-            createReviewMutation.mutate({
-              bookingId: reviewModal!.id,
-              rating: v.rating,
-              comment: v.comment,
-            })
-          )
-        }
-        onCancel={() => setReviewModal(null)}
-        confirmLoading={createReviewMutation.isPending}
-        okText="Опубликовать"
-        cancelText="Отмена"
-      >
-        <Form form={reviewForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item
-            name="rating"
-            label="Оценка"
-            rules={[{ required: true, message: 'Пожалуйста, поставьте оценку' }]}
-          >
-            <Rate />
-          </Form.Item>
-          <Form.Item name="comment" label="Комментарий (необязательно)">
-            <Input.TextArea
-              rows={4}
-              placeholder="Расскажите о вашем пребывании..."
-              maxLength={1000}
-              showCount
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {/* Password form */}
+      <Card>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Lock size={16} color="#3b82f6" /> Смена пароля
+        </h3>
+        <form onSubmit={handlePwdSave}>
+          {pwdError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', color: '#dc2626', fontSize: 13, marginBottom: 14 }}>{pwdError}</div>}
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Текущий пароль</label>
+            <input type="password" required value={pwdForm.currentPassword} onChange={(e) => setPwdForm((f) => ({ ...f, currentPassword: e.target.value }))} style={inputStyle} onFocus={focus} onBlur={blur} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+            <div>
+              <label style={labelStyle}>Новый пароль</label>
+              <input type="password" required value={pwdForm.newPassword} onChange={(e) => setPwdForm((f) => ({ ...f, newPassword: e.target.value }))} style={inputStyle} onFocus={focus} onBlur={blur} />
+            </div>
+            <div>
+              <label style={labelStyle}>Подтверждение</label>
+              <input type="password" required value={pwdForm.confirm} onChange={(e) => setPwdForm((f) => ({ ...f, confirm: e.target.value }))} style={inputStyle} onFocus={focus} onBlur={blur} />
+            </div>
+          </div>
+          {pwdMsg && <div style={{ fontSize: 13, color: '#22c55e', marginBottom: 12, fontWeight: 600 }}>✓ {pwdMsg}</div>}
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button type="submit" loading={savingPwd} icon={<Lock size={15} />}>Изменить пароль</Button>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 }

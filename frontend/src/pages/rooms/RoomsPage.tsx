@@ -1,259 +1,295 @@
-import {
-  EditOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
-import {
-  Button,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Select,
-  Space,
-  Table,
-  Typography,
-  message,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { Plus, RefreshCw, Lock, Unlock } from 'lucide-react';
 import { roomsApi } from '../../api/rooms';
 import { roomTypesApi } from '../../api/roomTypes';
-import { RoomStatusBadge } from '../../components/common/StatusBadge';
-import { useAuth } from '../../hooks/useAuth';
-import type { RoomListItemDto } from '../../types/api';
+import type { RoomDto, RoomTypeDto, RoomBlockDto } from '../../types/api';
 import { RoomStatus } from '../../types/enums';
+import { formatCurrency, formatDate } from '../../utils/format';
+import StatusBadge from '../../components/common/StatusBadge';
+import PageHeader from '../../components/common/PageHeader';
+import Table from '../../components/common/Table';
+import Pagination from '../../components/common/Pagination';
+import Modal from '../../components/common/Modal';
+import Button from '../../components/common/Button';
+import Card from '../../components/common/Card';
 
-const { Title } = Typography;
+const PAGE_SIZE = 15;
+const STATUS_DOT: Record<string, string> = {
+  Available: '#22c55e', Occupied: '#3b82f6', Cleaning: '#eab308',
+  Maintenance: '#ef4444', OutOfService: '#94a3b8',
+};
 
-const statusFilterOptions = Object.values(RoomStatus).map((s) => ({
-  value: s,
-  label: <RoomStatusBadge status={s} />,
-}));
+const todayStr = () => new Date().toISOString().split('T')[0];
+const weekLaterStr = () => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; };
 
-const roomStatusOptions = Object.values(RoomStatus).map((s) => ({
-  value: s,
-  label: <RoomStatusBadge status={s} />,
-}));
+export default function RoomsPage() {
+  const [items, setItems] = useState<RoomDto[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [roomTypes, setRoomTypes] = useState<RoomTypeDto[]>([]);
 
-export function RoomsPage() {
-  const qc = useQueryClient();
-  const { isManagerOrAbove, hasRole } = useAuth();
-  const [statusFilter, setStatusFilter] = useState<RoomStatus | undefined>();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingRoom, setEditingRoom] = useState<RoomListItemDto | null>(null);
-  const [statusModal, setStatusModal] = useState<{ id: string; current: RoomStatus } | null>(null);
-  const [form] = Form.useForm();
-  const [statusForm] = Form.useForm();
-  const [msg, contextHolder] = message.useMessage();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState({ number: '', floor: '', roomTypeId: '', description: '' });
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
-  const { data: rooms = [], isLoading } = useQuery({
-    queryKey: ['rooms'],
-    queryFn: roomsApi.getAll,
-  });
+  const [editItem, setEditItem] = useState<RoomDto | null>(null);
+  const [editStatus, setEditStatus] = useState('');
+  const [editing, setEditing] = useState(false);
 
-  const { data: roomTypes = [] } = useQuery({
-    queryKey: ['room-types'],
-    queryFn: roomTypesApi.getAll,
-  });
+  const [blocksRoom, setBlocksRoom] = useState<RoomDto | null>(null);
+  const [blocks, setBlocks] = useState<RoomBlockDto[]>([]);
+  const [blocksLoading, setBlocksLoading] = useState(false);
+  const [blockForm, setBlockForm] = useState({ blockedFrom: todayStr(), blockedTo: weekLaterStr(), reason: '' });
+  const [blocking, setBlocking] = useState(false);
+  const [blockError, setBlockError] = useState('');
+  const [unblockingId, setUnblockingId] = useState<string | null>(null);
 
-  const createMutation = useMutation({
-    mutationFn: roomsApi.create,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['rooms'] });
-      setModalOpen(false);
-      form.resetFields();
-      msg.success('Номер создан');
-    },
-  });
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [rooms, types] = await Promise.all([
+        roomsApi.getAll({ page, pageSize: PAGE_SIZE, status: statusFilter || undefined }),
+        roomTypesApi.getAll(),
+      ]);
+      setItems(rooms.data.items);
+      setTotalPages(rooms.data.totalPages);
+      setRoomTypes(types.data);
+    } finally { setLoading(false); }
+  }, [page, statusFilter]);
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof roomsApi.update>[1] }) =>
-      roomsApi.update(id, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['rooms'] });
-      setModalOpen(false);
-      setEditingRoom(null);
-      form.resetFields();
-      msg.success('Номер обновлён');
-    },
-  });
+  useEffect(() => { load(); }, [load]);
 
-  const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: RoomStatus }) =>
-      roomsApi.updateStatus(id, status),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['rooms'] });
-      setStatusModal(null);
-      msg.success('Статус обновлён');
-    },
-  });
-
-  const canChangeStatus = hasRole(
-    'Receptionist' as never,
-    'HousekeepingStaff' as never,
-    'Manager' as never,
-    'SuperAdmin' as never
-  );
-
-  const filtered = statusFilter ? rooms.filter((r) => r.status === statusFilter) : rooms;
-
-  const columns: ColumnsType<RoomListItemDto> = [
-    { title: 'Номер', dataIndex: 'number', key: 'number', width: 90 },
-    { title: 'Этаж', dataIndex: 'floor', key: 'floor', width: 80 },
-    { title: 'Тип', dataIndex: 'roomTypeName', key: 'roomTypeName' },
-    {
-      title: 'Статус',
-      dataIndex: 'status',
-      key: 'status',
-      render: (s: RoomStatus) => <RoomStatusBadge status={s} />,
-    },
-    { title: 'Вместимость', dataIndex: 'maxOccupancy', key: 'maxOccupancy', width: 120 },
-    {
-      title: 'Цена/ночь',
-      dataIndex: 'pricePerNight',
-      key: 'pricePerNight',
-      render: (v: number) => `${v.toLocaleString()} ₸`,
-    },
-    { title: 'Площадь', dataIndex: 'area', key: 'area', render: (v: number) => `${v} м²` },
-    {
-      title: 'Действия',
-      key: 'actions',
-      width: 180,
-      render: (_, record) => (
-        <Space>
-          {canChangeStatus && (
-            <Button
-              size="small"
-              onClick={() => {
-                setStatusModal({ id: record.id, current: record.status });
-                statusForm.setFieldValue('status', record.status);
-              }}
-            >
-              Статус
-            </Button>
-          )}
-          {isManagerOrAbove && (
-            <Button
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => {
-                setEditingRoom(record);
-                form.setFieldsValue({
-                  number: record.number,
-                  floor: record.floor,
-                  roomTypeId: roomTypes.find((rt) => rt.name === record.roomTypeName)?.id,
-                });
-                setModalOpen(true);
-              }}
-            />
-          )}
-        </Space>
-      ),
-    },
-  ];
-
-  const onSave = async () => {
-    const values = await form.validateFields();
-    if (editingRoom) {
-      updateMutation.mutate({ id: editingRoom.id, data: values });
-    } else {
-      createMutation.mutate(values);
-    }
+  const loadBlocks = async (roomId: string) => {
+    setBlocksLoading(true);
+    try {
+      const { data } = await roomsApi.getBlocks(roomId);
+      setBlocks(data);
+    } finally { setBlocksLoading(false); }
   };
+
+  const openBlocks = (room: RoomDto) => {
+    setBlocksRoom(room);
+    setBlockForm({ blockedFrom: todayStr(), blockedTo: weekLaterStr(), reason: '' });
+    setBlockError('');
+    loadBlocks(room.id);
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateError('');
+    setCreating(true);
+    try {
+      await roomsApi.create({ number: form.number, floor: parseInt(form.floor), roomTypeId: form.roomTypeId, description: form.description || undefined });
+      setCreateOpen(false);
+      setForm({ number: '', floor: '', roomTypeId: '', description: '' });
+      load();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setCreateError(msg || 'Ошибка создания номера');
+    } finally { setCreating(false); }
+  };
+
+  const handleStatusChange = async () => {
+    if (!editItem || !editStatus) return;
+    setEditing(true);
+    try { await roomsApi.changeStatus(editItem.id, editStatus); setEditItem(null); load(); } finally { setEditing(false); }
+  };
+
+  const handleBlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!blocksRoom) return;
+    setBlockError('');
+    setBlocking(true);
+    try {
+      await roomsApi.blockRoom(blocksRoom.id, blockForm);
+      setBlockForm({ blockedFrom: todayStr(), blockedTo: weekLaterStr(), reason: '' });
+      loadBlocks(blocksRoom.id);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setBlockError(msg || 'Ошибка блокировки');
+    } finally { setBlocking(false); }
+  };
+
+  const handleUnblock = async (blockId: string) => {
+    if (!blocksRoom) return;
+    setUnblockingId(blockId);
+    try { await roomsApi.unblockRoom(blocksRoom.id, blockId); loadBlocks(blocksRoom.id); }
+    finally { setUnblockingId(null); }
+  };
+
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none', color: '#1e293b', background: '#fff' };
+  const lbl: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 5 };
+
+  const columns = [
+    { key: 'number', header: 'Номер', render: (r: RoomDto) => <span style={{ fontWeight: 700, fontSize: 15 }}>№{r.number}</span> },
+    { key: 'floor', header: 'Этаж', render: (r: RoomDto) => `${r.floor} эт.` },
+    { key: 'roomTypeName', header: 'Тип' },
+    { key: 'roomTypeBasePrice', header: 'Цена/ночь', render: (r: RoomDto) => formatCurrency(r.roomTypeBasePrice) },
+    { key: 'status', header: 'Статус', render: (r: RoomDto) => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_DOT[r.status] ?? '#94a3b8' }} />
+        <StatusBadge status={r.status} />
+      </div>
+    )},
+    { key: 'actions', header: '', render: (r: RoomDto) => (
+      <div style={{ display: 'flex', gap: 6 }}>
+        <Button size="sm" variant="secondary" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setEditItem(r); setEditStatus(r.status); }}>
+          Статус
+        </Button>
+        <Button size="sm" variant="secondary" icon={<Lock size={12} />} onClick={(e: React.MouseEvent) => { e.stopPropagation(); openBlocks(r); }}>
+          Блоки
+        </Button>
+      </div>
+    )},
+  ];
 
   return (
     <div>
-      {contextHolder}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          Номера
-        </Title>
-        <Space>
-          <Select
-            allowClear
-            placeholder="Фильтр по статусу"
-            style={{ width: 180 }}
-            options={statusFilterOptions}
-            onChange={(v) => setStatusFilter(v)}
-          />
-          {isManagerOrAbove && (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                setEditingRoom(null);
-                form.resetFields();
-                setModalOpen(true);
-              }}
-            >
-              Добавить номер
-            </Button>
-          )}
-        </Space>
-      </div>
-
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={filtered}
-        loading={isLoading}
-        pagination={{ pageSize: 20 }}
-        size="middle"
+      <PageHeader
+        title="Номера"
+        subtitle={`${items.length} номеров на странице`}
+        action={<Button icon={<Plus size={16} />} onClick={() => setCreateOpen(true)}>Добавить номер</Button>}
       />
 
-      {/* Create/Edit Modal */}
-      <Modal
-        title={editingRoom ? 'Редактировать номер' : 'Новый номер'}
-        open={modalOpen}
-        onOk={onSave}
-        onCancel={() => {
-          setModalOpen(false);
-          setEditingRoom(null);
-          form.resetFields();
-        }}
-        confirmLoading={createMutation.isPending || updateMutation.isPending}
-        okText="Сохранить"
-        cancelText="Отмена"
-      >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="number" label="Номер комнаты" rules={[{ required: true }]}>
-            <Input maxLength={10} placeholder="101" />
-          </Form.Item>
-          <Form.Item name="floor" label="Этаж" rules={[{ required: true }]}>
-            <InputNumber min={0} max={100} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="roomTypeId" label="Тип номера" rules={[{ required: true }]}>
-            <Select
-              options={roomTypes.map((rt) => ({ value: rt.id, label: rt.name }))}
-              placeholder="Выберите тип"
-            />
-          </Form.Item>
-          <Form.Item name="notes" label="Заметки">
-            <Input.TextArea rows={3} />
-          </Form.Item>
-        </Form>
+      <Card style={{ marginBottom: 16 }} padding={12}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {['', ...Object.values(RoomStatus)].map((s) => (
+            <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 14px', borderRadius: 20,
+              border: `1px solid ${statusFilter === s ? '#3b82f6' : '#e2e8f0'}`,
+              background: statusFilter === s ? '#3b82f6' : '#fff',
+              color: statusFilter === s ? '#fff' : '#64748b',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}>
+              {s && <div style={{ width: 7, height: 7, borderRadius: '50%', background: statusFilter === s ? '#fff' : STATUS_DOT[s] }} />}
+              {s || 'Все'}
+            </button>
+          ))}
+          <Button variant="secondary" icon={<RefreshCw size={14} />} size="sm" onClick={load} style={{ marginLeft: 'auto' }}>Обновить</Button>
+        </div>
+      </Card>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {Object.entries(STATUS_DOT).map(([s, color]) => {
+          const count = items.filter((r) => r.status === s).length;
+          if (count === 0) return null;
+          return (
+            <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 20, fontSize: 12 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: color }} />
+              <span style={{ color: '#64748b' }}>{s}</span>
+              <span style={{ fontWeight: 700, color: '#1e293b' }}>{count}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <Card padding={0}>
+        <Table columns={columns} data={items} loading={loading} emptyText="Номера не найдены" />
+      </Card>
+      <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+
+      {/* Create modal */}
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Добавить номер">
+        <form onSubmit={handleCreate}>
+          {createError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', color: '#dc2626', fontSize: 13, marginBottom: 14 }}>{createError}</div>}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div>
+              <label style={lbl}>Номер комнаты *</label>
+              <input required value={form.number} onChange={(e) => setForm((f) => ({ ...f, number: e.target.value }))} style={inputStyle} placeholder="101" />
+            </div>
+            <div>
+              <label style={lbl}>Этаж *</label>
+              <input required type="number" min={1} value={form.floor} onChange={(e) => setForm((f) => ({ ...f, floor: e.target.value }))} style={inputStyle} placeholder="1" />
+            </div>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={lbl}>Тип номера *</label>
+            <select required value={form.roomTypeId} onChange={(e) => setForm((f) => ({ ...f, roomTypeId: e.target.value }))} style={inputStyle}>
+              <option value="">Выберите тип</option>
+              {roomTypes.map((t) => <option key={t.id} value={t.id}>{t.name} — {formatCurrency(t.basePrice)}/ночь</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={lbl}>Описание</label>
+            <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} style={{ ...inputStyle, height: 64, resize: 'vertical' }} placeholder="Особенности номера..." />
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <Button variant="secondary" type="button" onClick={() => setCreateOpen(false)}>Отмена</Button>
+            <Button type="submit" loading={creating}>Добавить</Button>
+          </div>
+        </form>
       </Modal>
 
-      {/* Change Status Modal */}
-      <Modal
-        title="Изменить статус номера"
-        open={!!statusModal}
-        onOk={() =>
-          statusForm.validateFields().then((v) => {
-            if (statusModal) statusMutation.mutate({ id: statusModal.id, status: v.status });
-          })
-        }
-        onCancel={() => setStatusModal(null)}
-        confirmLoading={statusMutation.isPending}
-        okText="Сохранить"
-        cancelText="Отмена"
-      >
-        <Form form={statusForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="status" label="Новый статус" rules={[{ required: true }]}>
-            <Select options={roomStatusOptions} />
-          </Form.Item>
-        </Form>
+      {/* Status modal */}
+      <Modal open={!!editItem} onClose={() => setEditItem(null)} title={`Статус номера №${editItem?.number}`}>
+        <div style={{ marginBottom: 20 }}>
+          {Object.values(RoomStatus).map((s) => (
+            <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1px solid ${editStatus === s ? '#3b82f6' : '#e2e8f0'}`, borderRadius: 8, cursor: 'pointer', background: editStatus === s ? '#eff6ff' : '#fff', marginBottom: 8 }}>
+              <input type="radio" name="status" value={s} checked={editStatus === s} onChange={() => setEditStatus(s)} />
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_DOT[s] }} />
+              <span style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{s}</span>
+            </label>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <Button variant="secondary" onClick={() => setEditItem(null)}>Отмена</Button>
+          <Button onClick={handleStatusChange} loading={editing}>Сохранить</Button>
+        </div>
+      </Modal>
+
+      {/* Blocks modal */}
+      <Modal open={!!blocksRoom} onClose={() => setBlocksRoom(null)} title={`Блокировки номера №${blocksRoom?.number}`}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#64748b', marginBottom: 10 }}>Активные блокировки</div>
+          {blocksLoading ? (
+            <div style={{ padding: '16px 0', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Загрузка...</div>
+          ) : blocks.filter((b) => b.isActive).length === 0 ? (
+            <div style={{ padding: '12px 0', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Нет активных блокировок</div>
+          ) : blocks.filter((b) => b.isActive).map((b) => (
+            <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, marginBottom: 8 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#dc2626' }}>{formatDate(b.blockedFrom)} → {formatDate(b.blockedTo)}</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{b.reason}{b.blockedByName && ` · ${b.blockedByName}`}</div>
+              </div>
+              <Button size="sm" variant="secondary" icon={<Unlock size={12} />}
+                loading={unblockingId === b.id}
+                onClick={() => handleUnblock(b.id)}>
+                Снять
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#64748b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Lock size={13} /> Добавить блокировку
+          </div>
+          <form onSubmit={handleBlock}>
+            {blockError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', color: '#dc2626', fontSize: 13, marginBottom: 12 }}>{blockError}</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div>
+                <label style={lbl}>От *</label>
+                <input required type="date" value={blockForm.blockedFrom} onChange={(e) => setBlockForm((f) => ({ ...f, blockedFrom: e.target.value }))} style={inputStyle} />
+              </div>
+              <div>
+                <label style={lbl}>До *</label>
+                <input required type="date" value={blockForm.blockedTo} onChange={(e) => setBlockForm((f) => ({ ...f, blockedTo: e.target.value }))} style={inputStyle} />
+              </div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={lbl}>Причина *</label>
+              <input required value={blockForm.reason} onChange={(e) => setBlockForm((f) => ({ ...f, reason: e.target.value }))} style={inputStyle} placeholder="VIP резерв, ремонт, техработы..." />
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <Button variant="secondary" type="button" onClick={() => setBlocksRoom(null)}>Закрыть</Button>
+              <Button type="submit" loading={blocking} icon={<Lock size={13} />}>Заблокировать</Button>
+            </div>
+          </form>
+        </div>
       </Modal>
     </div>
   );

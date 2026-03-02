@@ -15,6 +15,12 @@ public class User : BaseEntity
     public string? RefreshToken { get; private set; }
     public DateTime? RefreshTokenExpiryTime { get; private set; }
 
+    // DNR (Do Not Rent) — гость в чёрном списке
+    public bool IsDnr { get; private set; }
+    public string? DnrReason { get; private set; }
+    public DateTime? DnrFlaggedAt { get; private set; }
+    public Guid? DnrFlaggedByUserId { get; private set; }
+
     // Navigation
     public ICollection<Booking> Bookings { get; private set; } = new List<Booking>();
     public ICollection<MaintenanceRequest> MaintenanceRequests { get; private set; } = new List<MaintenanceRequest>();
@@ -63,6 +69,29 @@ public class User : BaseEntity
         SetUpdatedAt();
     }
 
+    public void Activate()
+    {
+        IsActive = true;
+        SetUpdatedAt();
+    }
+
+    public void FlagDnr(string reason, Guid flaggedByUserId)
+    {
+        IsDnr              = true;
+        DnrReason          = reason;
+        DnrFlaggedAt       = DateTime.UtcNow;
+        DnrFlaggedByUserId = flaggedByUserId;
+        SetUpdatedAt();
+    }
+
+    public void UnflagDnr()
+    {
+        IsDnr              = false;
+        DnrReason          = null;
+        DnrFlaggedAt       = null;
+        DnrFlaggedByUserId = null;
+        SetUpdatedAt();
+    }
 
     public void UpdateRole(UserRole newRole)
     {

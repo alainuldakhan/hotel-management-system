@@ -1,4 +1,6 @@
 using FluentValidation;
+using HotelManagement.Application.Common;
+using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Repositories;
 using HotelManagement.Domain.Entities;
 using HotelManagement.Domain.Exceptions;
@@ -24,11 +26,16 @@ public class UpdateAdditionalServiceCommandHandler : IRequestHandler<UpdateAddit
 {
     private readonly IAdditionalServiceRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICacheService _cache;
 
-    public UpdateAdditionalServiceCommandHandler(IAdditionalServiceRepository repository, IUnitOfWork unitOfWork)
+    public UpdateAdditionalServiceCommandHandler(
+        IAdditionalServiceRepository repository,
+        IUnitOfWork unitOfWork,
+        ICacheService cache)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
+        _cache = cache;
     }
 
     public async Task Handle(UpdateAdditionalServiceCommand request, CancellationToken cancellationToken)
@@ -42,5 +49,7 @@ public class UpdateAdditionalServiceCommandHandler : IRequestHandler<UpdateAddit
         service.Update(request.Name, request.Description, request.Price);
         _repository.Update(service);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await _cache.RemoveAsync(CacheKeys.ServicesAll);
     }
 }

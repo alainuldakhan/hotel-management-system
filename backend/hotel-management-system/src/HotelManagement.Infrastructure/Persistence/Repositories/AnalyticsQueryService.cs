@@ -1,3 +1,4 @@
+using HotelManagement.Application.Common;
 using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Queries;
 using HotelManagement.Application.DTOs;
@@ -6,10 +7,21 @@ namespace HotelManagement.Infrastructure.Persistence.Repositories;
 
 public class AnalyticsQueryService : DapperQueryBase, IAnalyticsQueryService
 {
-    public AnalyticsQueryService(IDbConnectionFactory connectionFactory)
-        : base(connectionFactory) { }
+    private readonly ICacheService _cache;
+
+    public AnalyticsQueryService(IDbConnectionFactory connectionFactory, ICacheService cache)
+        : base(connectionFactory) { _cache = cache; }
 
     public async Task<DashboardStatsDto> GetDashboardStatsAsync(CancellationToken ct = default)
+    {
+        return await _cache.GetOrSetAsync(
+            CacheKeys.DashboardStats,
+            () => FetchDashboardStatsAsync(ct),
+            TimeSpan.FromSeconds(60),
+            ct);
+    }
+
+    private async Task<DashboardStatsDto> FetchDashboardStatsAsync(CancellationToken ct)
     {
         var sql = """
             SELECT
@@ -122,5 +134,88 @@ public class AnalyticsQueryService : DapperQueryBase, IAnalyticsQueryService
             """;
 
         return await QueryAsync<TopGuestDto>(sql, new { Count = count }, ct);
+    }
+
+    public async Task<HotelKpiDto> GetKpiStatsAsync(
+        DateTime from, DateTime to, CancellationToken ct = default)
+    {
+        return await _cache.GetOrSetAsync(
+            CacheKeys.KpiStats(from, to),
+            () => FetchKpiStatsAsync(from, to, ct),
+            TimeSpan.FromMinutes(5),
+            ct);
+    }
+
+    private async Task<HotelKpiDto> FetchKpiStatsAsync(
+        DateTime from, DateTime to, CancellationToken ct)
+    {
+        var today = DateTime.UtcNow.Date;
+
+        var sql = """
+            WITH period_bookings AS (
+                SELECT
+                    b.id,
+                    b.total_amount,
+                    DATE_PART('day', b.check_out_date - b.check_in_date)::int AS nights
+                FROM bookings b
+                WHERE b.status NOT IN (5)   -- исключаем отменённые
+                  AND b.check_in_date >= @From
+                  AND b.check_out_date <= @To
+            ),
+            room_counts AS (
+                SELECT COUNT(*) AS total FROM rooms WHERE is_active = true
+            ),
+            adr_data AS (
+                SELECT
+                    COALESCE(SUM(total_amount), 0)              AS total_revenue,
+                    COALESCE(SUM(nights), 0)                    AS total_room_nights,
+                    COUNT(id)                                    AS total_bookings
+                FROM period_bookings
+            ),
+            forecast AS (
+                SELECT
+                    COUNT(*) FILTER (WHERE check_in_date >= @Today
+                        AND check_in_date < @Today + INTERVAL '30 days'
+                        AND status IN (2, 3))                   AS books_30,
+                    COUNT(*) FILTER (WHERE check_in_date >= @Today
+                        AND check_in_date < @Today + INTERVAL '60 days'
+                        AND status IN (2, 3))                   AS books_60,
+                    COUNT(*) FILTER (WHERE check_in_date >= @Today
+                        AND check_in_date < @Today + INTERVAL '90 days'
+                        AND status IN (2, 3))                   AS books_90
+                FROM bookings
+            )
+            SELECT
+                -- ADR = Revenue / Room Nights Sold
+                ROUND(
+                    ad.total_revenue / NULLIF(ad.total_room_nights, 0), 2
+                )                                               AS Adr,
+                -- RevPAR = ADR × Occupancy%
+                ROUND(
+                    (ad.total_revenue / NULLIF(ad.total_room_nights, 0))
+                    * (ad.total_room_nights * 100.0
+                       / NULLIF(rc.total * DATE_PART('day', @To::date - @From::date), 0))
+                    / 100.0, 2
+                )                                               AS RevPar,
+                -- ALOS = Total Nights / Total Bookings
+                ROUND(
+                    ad.total_room_nights::numeric / NULLIF(ad.total_bookings, 0), 2
+                )                                               AS AverageLengthOfStay,
+                -- Occupancy %
+                ROUND(
+                    ad.total_room_nights * 100.0
+                    / NULLIF(rc.total * DATE_PART('day', @To::date - @From::date), 0), 2
+                )                                               AS OccupancyPercent,
+                ad.total_room_nights                            AS TotalRoomNightsSold,
+                ad.total_revenue                                AS TotalRevenue,
+                f.books_30                                      AS RoomsOnBooks30Days,
+                f.books_60                                      AS RoomsOnBooks60Days,
+                f.books_90                                      AS RoomsOnBooks90Days
+            FROM adr_data ad
+            CROSS JOIN room_counts rc
+            CROSS JOIN forecast f
+            """;
+
+        return await QuerySingleAsync<HotelKpiDto>(sql, new { From = from, To = to, Today = today }, ct);
     }
 }

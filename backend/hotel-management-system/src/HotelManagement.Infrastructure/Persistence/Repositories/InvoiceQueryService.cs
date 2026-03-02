@@ -1,4 +1,4 @@
-using HotelManagement.Application.Common.Interfaces;
+﻿using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Queries;
 using HotelManagement.Application.DTOs;
 
@@ -142,6 +142,25 @@ public class InvoiceQueryService : DapperQueryBase, IInvoiceQueryService
             """;
 
         return await QueryAsync<DailyOccupancyItemDto>(sql, new { Date = date.Date }, ct);
+    }
+
+
+    public async Task<PagedResultDto<InvoiceDto>> GetAllPagedAsync(InvoiceFilterDto filter, CancellationToken ct = default)
+    {
+        var whereClauses = new List<string>();
+        var parameters = new Dapper.DynamicParameters();
+        if (!string.IsNullOrWhiteSpace(filter.Status)) { whereClauses.Add("i.status::text = @Status"); parameters.Add("Status", filter.Status); }
+        if (filter.From.HasValue) { whereClauses.Add("i.created_at >= @From"); parameters.Add("From", filter.From); }
+        if (filter.To.HasValue) { whereClauses.Add("i.created_at <= @To"); parameters.Add("To", filter.To); }
+        var where = whereClauses.Count > 0 ? "WHERE " + string.Join(" AND ", whereClauses) : "";
+        var offset = (filter.Page - 1) * filter.PageSize;
+        parameters.Add("Limit", filter.PageSize);
+        parameters.Add("Offset", offset);
+        var countSql = $"SELECT COUNT(*) FROM invoices i JOIN bookings b ON b.id = i.booking_id JOIN rooms r ON r.id = b.room_id JOIN users u ON u.id = b.guest_id {where}";
+        var dataSql = $"SELECT i.id AS Id, i.invoice_number AS InvoiceNumber, i.booking_id AS BookingId, r.number AS RoomNumber, u.first_name || ' ' || u.last_name AS GuestFullName, i.amount AS Amount, i.status::text AS Status, i.payment_method AS PaymentMethod, i.paid_at AS PaidAt, i.notes AS Notes, i.created_at AS CreatedAt FROM invoices i JOIN bookings b ON b.id = i.booking_id JOIN rooms r ON r.id = b.room_id JOIN users u ON u.id = b.guest_id {where} ORDER BY i.created_at DESC LIMIT @Limit OFFSET @Offset";
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters, ct);
+        var items = await QueryAsync<InvoiceDto>(dataSql, parameters, ct);
+        return new PagedResultDto<InvoiceDto>(items, totalCount, filter.Page, filter.PageSize);
     }
 
     private class InvoiceDetailRaw
