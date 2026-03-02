@@ -14,11 +14,11 @@ namespace HotelManagement.Application.Features.RoomTypes.Commands;
 public record UpdateRoomTypeCommand(
     Guid Id,
     string Name,
-    string Description,
+    string? Description,
     int MaxOccupancy,
     decimal BasePrice,
-    decimal Area,
-    List<string> Amenities
+    decimal Area = 25m,
+    List<string>? Amenities = null
 ) : IRequest;
 
 // ── Validator ─────────────────────────────────────────────────────────────────
@@ -34,18 +34,14 @@ public class UpdateRoomTypeCommandValidator : AbstractValidator<UpdateRoomTypeCo
             .MaximumLength(100);
 
         RuleFor(x => x.Description)
-            .NotEmpty().WithMessage("Description is required.")
             .MaximumLength(1000);
 
         RuleFor(x => x.MaxOccupancy)
-            .GreaterThan(0)
+            .GreaterThan(0).WithMessage("Вместимость должна быть больше 0.")
             .LessThanOrEqualTo(20);
 
         RuleFor(x => x.BasePrice)
-            .GreaterThan(0).WithMessage("Base price must be greater than 0.");
-
-        RuleFor(x => x.Area)
-            .GreaterThan(0).WithMessage("Area must be greater than 0.");
+            .GreaterThan(0).WithMessage("Цена должна быть больше 0.");
     }
 }
 

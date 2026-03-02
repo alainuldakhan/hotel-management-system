@@ -46,7 +46,7 @@ export default function RoomTypesPage() {
       name: form.name,
       description: form.description || undefined,
       basePrice: parseFloat(form.basePrice),
-      capacity: parseInt(form.capacity),
+      maxOccupancy: parseInt(form.capacity),
       amenities: form.amenities.split(',').map((a) => a.trim()).filter(Boolean),
     };
     try {

@@ -2,6 +2,7 @@ using Dapper;
 using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Queries;
 using HotelManagement.Application.DTOs;
+using HotelManagement.Domain.Enums;
 
 namespace HotelManagement.Infrastructure.Persistence.Repositories;
 
@@ -18,10 +19,11 @@ public class UserQueryService : DapperQueryBase, IUserQueryService
         var whereClauses = new List<string>();
         var parameters = new DynamicParameters();
 
-        if (!string.IsNullOrWhiteSpace(role))
+        if (!string.IsNullOrWhiteSpace(role) &&
+            Enum.TryParse<UserRole>(role, ignoreCase: true, out var roleEnum))
         {
-            whereClauses.Add("role::text = @Role");
-            parameters.Add("Role", role);
+            whereClauses.Add("role = @Role");
+            parameters.Add("Role", (int)roleEnum);
         }
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -46,7 +48,15 @@ public class UserQueryService : DapperQueryBase, IUserQueryService
                 first_name || ' ' || last_name      AS FullName,
                 email                               AS Email,
                 phone_number                        AS PhoneNumber,
-                role::text                          AS Role,
+                CASE role
+                    WHEN 1 THEN 'Guest'
+                    WHEN 2 THEN 'Receptionist'
+                    WHEN 3 THEN 'HousekeepingStaff'
+                    WHEN 4 THEN 'MaintenanceStaff'
+                    WHEN 5 THEN 'Manager'
+                    WHEN 6 THEN 'SuperAdmin'
+                    ELSE 'Unknown'
+                END                                 AS Role,
                 is_active                           AS IsActive,
                 is_dnr                              AS IsDnr,
                 dnr_reason                          AS DnrReason,
@@ -68,14 +78,25 @@ public class UserQueryService : DapperQueryBase, IUserQueryService
     {
         var sql = """
             SELECT
-                id              AS Id,
-                first_name      AS FirstName,
-                last_name       AS LastName,
-                email           AS Email,
-                phone_number    AS PhoneNumber,
-                role::text      AS Role,
-                is_active       AS IsActive,
-                created_at      AS CreatedAt
+                id                                  AS Id,
+                first_name                          AS FirstName,
+                last_name                           AS LastName,
+                first_name || ' ' || last_name      AS FullName,
+                email                               AS Email,
+                phone_number                        AS PhoneNumber,
+                CASE role
+                    WHEN 1 THEN 'Guest'
+                    WHEN 2 THEN 'Receptionist'
+                    WHEN 3 THEN 'HousekeepingStaff'
+                    WHEN 4 THEN 'MaintenanceStaff'
+                    WHEN 5 THEN 'Manager'
+                    WHEN 6 THEN 'SuperAdmin'
+                    ELSE 'Unknown'
+                END                                 AS Role,
+                is_active                           AS IsActive,
+                is_dnr                              AS IsDnr,
+                dnr_reason                          AS DnrReason,
+                created_at                          AS CreatedAt
             FROM users
             WHERE id = @Id
             """;
@@ -92,7 +113,15 @@ public class UserQueryService : DapperQueryBase, IUserQueryService
                 u.last_name                                             AS LastName,
                 u.email                                                 AS Email,
                 u.phone_number                                          AS PhoneNumber,
-                u.role::text                                            AS Role,
+                CASE u.role
+                    WHEN 1 THEN 'Guest'
+                    WHEN 2 THEN 'Receptionist'
+                    WHEN 3 THEN 'HousekeepingStaff'
+                    WHEN 4 THEN 'MaintenanceStaff'
+                    WHEN 5 THEN 'Manager'
+                    WHEN 6 THEN 'SuperAdmin'
+                    ELSE 'Unknown'
+                END                                                     AS Role,
                 u.created_at                                            AS CreatedAt,
                 COUNT(b.id)                                             AS TotalBookings,
                 COALESCE(SUM(b.total_amount), 0)                        AS TotalSpent,
