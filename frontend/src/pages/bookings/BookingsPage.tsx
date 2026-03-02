@@ -53,9 +53,9 @@ export default function BookingsPage() {
       usersApi.getAll({ role: 'Guest', pageSize: 100 }),
       servicesApi.getAll(),
     ]);
-    setRooms(r.data.items);
-    setGuests(u.data.items);
-    setServices(s.data);
+    setRooms(r.data.items ?? []);
+    setGuests(u.data.items ?? []);
+    setServices(s.data ?? []);
   };
 
   const handleCreate = async (e: React.FormEvent) => {

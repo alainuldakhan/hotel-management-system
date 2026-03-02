@@ -5,16 +5,20 @@ using MediatR;
 
 namespace HotelManagement.Application.Features.Users.Queries;
 
-public record GetUsersQuery : IRequest<IEnumerable<UserListItemDto>>;
+public record GetUsersQuery(
+    string? Role = null,
+    string? Search = null,
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResultDto<UserListItemDto>>;
 
-public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, IEnumerable<UserListItemDto>>
+public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, PagedResultDto<UserListItemDto>>
 {
     private readonly IUserQueryService _queryService;
 
     public GetUsersQueryHandler(IUserQueryService queryService) => _queryService = queryService;
 
-    public Task<IEnumerable<UserListItemDto>> Handle(GetUsersQuery request, CancellationToken cancellationToken)
-        => _queryService.GetAllAsync(cancellationToken);
+    public Task<PagedResultDto<UserListItemDto>> Handle(GetUsersQuery request, CancellationToken cancellationToken)
+        => _queryService.GetAllAsync(request.Role, request.Search, request.Page, request.PageSize, cancellationToken);
 }
 
 public record GetUserByIdQuery(Guid Id) : IRequest<UserListItemDto>;

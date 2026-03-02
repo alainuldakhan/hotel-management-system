@@ -4,10 +4,13 @@ public record UserListItemDto(
     Guid Id,
     string FirstName,
     string LastName,
+    string FullName,
     string Email,
     string? PhoneNumber,
     string Role,
     bool IsActive,
+    bool IsDnr,
+    string? DnrReason,
     DateTime CreatedAt
 );
 

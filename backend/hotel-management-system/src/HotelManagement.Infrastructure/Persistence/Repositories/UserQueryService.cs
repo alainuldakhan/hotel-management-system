@@ -1,3 +1,4 @@
+using Dapper;
 using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Queries;
 using HotelManagement.Application.DTOs;
@@ -9,23 +10,58 @@ public class UserQueryService : DapperQueryBase, IUserQueryService
     public UserQueryService(IDbConnectionFactory connectionFactory)
         : base(connectionFactory) { }
 
-    public async Task<IEnumerable<UserListItemDto>> GetAllAsync(CancellationToken ct = default)
+    public async Task<PagedResultDto<UserListItemDto>> GetAllAsync(
+        string? role = null, string? search = null,
+        int page = 1, int pageSize = 20,
+        CancellationToken ct = default)
     {
-        var sql = """
+        var whereClauses = new List<string>();
+        var parameters = new DynamicParameters();
+
+        if (!string.IsNullOrWhiteSpace(role))
+        {
+            whereClauses.Add("role::text = @Role");
+            parameters.Add("Role", role);
+        }
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            whereClauses.Add("(first_name ILIKE @Search OR last_name ILIKE @Search OR email ILIKE @Search)");
+            parameters.Add("Search", $"%{search}%");
+        }
+
+        var where = whereClauses.Count > 0
+            ? "WHERE " + string.Join(" AND ", whereClauses)
+            : "";
+
+        var offset = (page - 1) * pageSize;
+        parameters.Add("Limit", pageSize);
+        parameters.Add("Offset", offset);
+
+        var countSql = $"SELECT COUNT(*) FROM users {where}";
+        var dataSql = $"""
             SELECT
-                id              AS Id,
-                first_name      AS FirstName,
-                last_name       AS LastName,
-                email           AS Email,
-                phone_number    AS PhoneNumber,
-                role::text      AS Role,
-                is_active       AS IsActive,
-                created_at      AS CreatedAt
+                id                                  AS Id,
+                first_name                          AS FirstName,
+                last_name                           AS LastName,
+                first_name || ' ' || last_name      AS FullName,
+                email                               AS Email,
+                phone_number                        AS PhoneNumber,
+                role::text                          AS Role,
+                is_active                           AS IsActive,
+                is_dnr                              AS IsDnr,
+                dnr_reason                          AS DnrReason,
+                created_at                          AS CreatedAt
             FROM users
+            {where}
             ORDER BY created_at DESC
+            LIMIT @Limit OFFSET @Offset
             """;
 
-        return await QueryAsync<UserListItemDto>(sql, ct: ct);
+        using var connection = _connectionFactory.CreateConnection();
+        var totalCount = await connection.QuerySingleAsync<int>(countSql, parameters);
+        var items = await connection.QueryAsync<UserListItemDto>(dataSql, parameters);
+
+        return new PagedResultDto<UserListItemDto>(items, totalCount, page, pageSize);
     }
 
     public async Task<UserListItemDto?> GetByIdAsync(Guid id, CancellationToken ct = default)

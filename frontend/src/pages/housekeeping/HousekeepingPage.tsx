@@ -47,8 +47,8 @@ export default function HousekeepingPage() {
   const openCreate = async () => {
     setCreateOpen(true);
     const [r, u] = await Promise.all([roomsApi.getAll({ pageSize: 200 }), usersApi.getAll({ role: UserRole.HousekeepingStaff, pageSize: 100 })]);
-    setRooms(r.data.items);
-    setStaff(u.data.items);
+    setRooms(r.data.items ?? []);
+    setStaff(u.data.items ?? []);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
