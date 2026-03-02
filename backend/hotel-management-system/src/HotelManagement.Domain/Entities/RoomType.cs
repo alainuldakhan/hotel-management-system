@@ -5,7 +5,7 @@ namespace HotelManagement.Domain.Entities;
 public class RoomType : BaseEntity
 {
     public string Name { get; private set; } = string.Empty;          // Standard, Deluxe, Suite, Apartment
-    public string Description { get; private set; } = string.Empty;
+    public string? Description { get; private set; }
     public int MaxOccupancy { get; private set; }
     public decimal BasePrice { get; private set; }                    // Базовая цена за ночь
     public decimal Area { get; private set; }                         // Площадь в м²
@@ -19,7 +19,7 @@ public class RoomType : BaseEntity
 
     protected RoomType() { }
 
-    public static RoomType Create(string name, string description, int maxOccupancy,
+    public static RoomType Create(string name, string? description, int maxOccupancy,
         decimal basePrice, decimal area, List<string>? amenities = null)
     {
         return new RoomType
@@ -33,15 +33,15 @@ public class RoomType : BaseEntity
         };
     }
 
-    public void Update(string name, string description, int maxOccupancy,
-        decimal basePrice, decimal area, List<string> amenities)
+    public void Update(string name, string? description, int maxOccupancy,
+        decimal basePrice, decimal area, List<string>? amenities)
     {
         Name = name;
         Description = description;
         MaxOccupancy = maxOccupancy;
         BasePrice = basePrice;
         Area = area;
-        Amenities = amenities;
+        Amenities = amenities ?? new List<string>();
         SetUpdatedAt();
     }
 

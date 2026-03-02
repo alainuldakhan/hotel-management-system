@@ -3,19 +3,20 @@ namespace HotelManagement.Application.DTOs;
 public record RoomTypeListItemDto(
     Guid Id,
     string Name,
-    string Description,
+    string? Description,
     int MaxOccupancy,
     decimal BasePrice,
     decimal Area,
     int RoomsCount,
     string? ImageUrl,
-    bool IsActive
+    bool IsActive,
+    string? AmenitiesCsv = null
 );
 
 public record RoomTypeDetailDto(
     Guid Id,
     string Name,
-    string Description,
+    string? Description,
     int MaxOccupancy,
     decimal BasePrice,
     decimal Area,

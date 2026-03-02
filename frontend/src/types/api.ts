@@ -34,9 +34,12 @@ export interface RoomTypeDto {
   name: string;
   description?: string;
   basePrice: number;
-  capacity: number;
-  amenities: string[];
-  createdAt: string;
+  maxOccupancy: number;
+  area: number;
+  roomsCount: number;
+  imageUrl?: string;
+  isActive: boolean;
+  amenitiesCsv?: string;
 }
 
 export interface RoomDto {

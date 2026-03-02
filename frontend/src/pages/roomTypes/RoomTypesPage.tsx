@@ -33,7 +33,7 @@ export default function RoomTypesPage() {
   };
 
   const openEdit = (item: RoomTypeDto) => {
-    setForm({ name: item.name, description: item.description ?? '', basePrice: String(item.basePrice), capacity: String(item.capacity), amenities: item.amenities.join(', ') });
+    setForm({ name: item.name, description: item.description ?? '', basePrice: String(item.basePrice), capacity: String(item.maxOccupancy), amenities: item.amenitiesCsv ?? '' });
     setError('');
     setEditItem(item);
   };
@@ -120,7 +120,7 @@ export default function RoomTypesPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
                   <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{item.name}</h3>
-                  <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>До {item.capacity} гостей</p>
+                  <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>До {item.maxOccupancy} гостей</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 18, fontWeight: 800, color: '#1e293b' }}>{formatCurrency(item.basePrice)}</div>
@@ -132,9 +132,9 @@ export default function RoomTypesPage() {
                 <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12, lineHeight: 1.5 }}>{item.description}</p>
               )}
 
-              {item.amenities.length > 0 && (
+              {item.amenitiesCsv && item.amenitiesCsv.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-                  {item.amenities.map((a) => (
+                  {item.amenitiesCsv.split(',').map((a) => a.trim()).filter(Boolean).map((a) => (
                     <span key={a} style={{ padding: '3px 9px', background: '#f1f5f9', borderRadius: 4, fontSize: 11, color: '#475569', fontWeight: 500 }}>
                       {a}
                     </span>

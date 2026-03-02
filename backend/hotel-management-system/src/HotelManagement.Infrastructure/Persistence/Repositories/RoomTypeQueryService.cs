@@ -28,11 +28,12 @@ public class RoomTypeQueryService : DapperQueryBase, IRoomTypeQueryService
                         rt.area             AS Area,
                         COUNT(r.id)         AS RoomsCount,
                         rt.image_url        AS ImageUrl,
-                        rt.is_active        AS IsActive
+                        rt.is_active        AS IsActive,
+                        rt.amenities        AS AmenitiesCsv
                     FROM room_types rt
                     LEFT JOIN rooms r ON r.room_type_id = rt.id AND r.is_active = true
                     GROUP BY rt.id, rt.name, rt.description, rt.max_occupancy,
-                             rt.base_price, rt.area, rt.image_url, rt.is_active
+                             rt.base_price, rt.area, rt.image_url, rt.is_active, rt.amenities
                     ORDER BY rt.name
                     """;
                 return (await QueryAsync<RoomTypeListItemDto>(sql, ct: ct)).ToList();
