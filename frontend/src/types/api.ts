@@ -47,17 +47,21 @@ export interface RoomDto {
   number: string;
   floor: number;
   status: RoomStatus;
-  roomTypeId: string;
+  roomTypeId?: string;
   roomTypeName: string;
-  roomTypeBasePrice: number;
+  pricePerNight: number;
+  roomTypeBasePrice?: number;
+  maxOccupancy?: number;
+  area?: number;
+  imageUrl?: string;
   description?: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface BookingDto {
   id: string;
   guestId: string;
-  guestName: string;
+  guestFullName: string;
   guestEmail: string;
   roomId: string;
   roomNumber: string;
@@ -161,16 +165,16 @@ export interface PricingRuleDto {
 }
 
 export interface DashboardStatsDto {
-  occupancyRate: number;
+  occupancyPercent: number;
   totalRooms: number;
   occupiedRooms: number;
-  availableRooms: number;
   revenueToday: number;
   revenueThisMonth: number;
+  bookingsToday: number;
   checkInsToday: number;
   checkOutsToday: number;
-  pendingMaintenance: number;
-  pendingHousekeeping: number;
+  pendingMaintenanceRequests: number;
+  activeBookings: number;
 }
 
 export interface RevenueByPeriodDto {

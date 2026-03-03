@@ -111,8 +111,8 @@ public class DataSeeder
         var highSeasonRule = PricingRule.Create("Высокий сезон (лето)", 1.30m);
         highSeasonRule.Update(
             "Высокий сезон (лето)", 1.30m,
-            startDate: new DateTime(DateTime.UtcNow.Year, 7, 1),
-            endDate:   new DateTime(DateTime.UtcNow.Year, 8, 31),
+            startDate: new DateTime(DateTime.UtcNow.Year, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+            endDate:   new DateTime(DateTime.UtcNow.Year, 8, 31, 0, 0, 0, DateTimeKind.Utc),
             applicableDays: null,
             minOccupancyPercent: null, maxDaysBeforeCheckIn: null,
             roomTypeId: null);

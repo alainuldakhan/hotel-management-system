@@ -23,12 +23,15 @@ const todayStr = () => new Date().toISOString().split('T')[0];
 const weekLaterStr = () => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; };
 
 export default function RoomsPage() {
-  const [items, setItems] = useState<RoomDto[]>([]);
-  const [totalPages, setTotalPages] = useState(1);
+  const [allItems, setAllItems] = useState<RoomDto[]>([]);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [roomTypes, setRoomTypes] = useState<RoomTypeDto[]>([]);
+
+  const filtered = statusFilter ? allItems.filter((r) => r.status === statusFilter) : allItems;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const items = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ number: '', floor: '', roomTypeId: '', description: '' });
@@ -51,14 +54,13 @@ export default function RoomsPage() {
     setLoading(true);
     try {
       const [rooms, types] = await Promise.all([
-        roomsApi.getAll({ page, pageSize: PAGE_SIZE, status: statusFilter || undefined }),
+        roomsApi.getAll(),
         roomTypesApi.getAll(),
       ]);
-      setItems(rooms.data.items);
-      setTotalPages(rooms.data.totalPages);
+      setAllItems(rooms.data);
       setRoomTypes(types.data);
     } finally { setLoading(false); }
-  }, [page, statusFilter]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -127,7 +129,7 @@ export default function RoomsPage() {
     { key: 'number', header: 'Номер', render: (r: RoomDto) => <span style={{ fontWeight: 700, fontSize: 15 }}>№{r.number}</span> },
     { key: 'floor', header: 'Этаж', render: (r: RoomDto) => `${r.floor} эт.` },
     { key: 'roomTypeName', header: 'Тип' },
-    { key: 'roomTypeBasePrice', header: 'Цена/ночь', render: (r: RoomDto) => formatCurrency(r.roomTypeBasePrice) },
+    { key: 'pricePerNight', header: 'Цена/ночь', render: (r: RoomDto) => formatCurrency(r.pricePerNight) },
     { key: 'status', header: 'Статус', render: (r: RoomDto) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_DOT[r.status] ?? '#94a3b8' }} />
@@ -150,7 +152,7 @@ export default function RoomsPage() {
     <div>
       <PageHeader
         title="Номера"
-        subtitle={`${items.length} номеров на странице`}
+        subtitle={`${filtered.length} номеров`}
         action={<Button icon={<Plus size={16} />} onClick={() => setCreateOpen(true)}>Добавить номер</Button>}
       />
 

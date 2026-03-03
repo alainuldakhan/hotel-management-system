@@ -44,8 +44,8 @@ export default function MaintenancePage() {
   const openCreate = async () => {
     setCreateError('');
     setCreateOpen(true);
-    const { data } = await roomsApi.getAll({ pageSize: 200 });
-    setRooms(data.items);
+    const { data } = await roomsApi.getAll();
+    setRooms(data);
   };
 
   const handleCreate = async (e: React.FormEvent) => {

@@ -138,7 +138,7 @@ export default function BookingDetailPage() {
   const lbl: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 5 };
 
   const rows: [string, string | number][] = [
-    ['Гость', booking.guestName],
+    ['Гость', booking.guestFullName],
     ['Email', booking.guestEmail],
     ['Номер', `№${booking.roomNumber} (${booking.roomTypeName})`],
     ['Заезд', formatDate(booking.checkInDate)],
@@ -155,7 +155,7 @@ export default function BookingDetailPage() {
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e293b' }}>{booking.guestName}</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e293b' }}>{booking.guestFullName}</h1>
           <p style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>№{booking.roomNumber} · {booking.roomTypeName} · {booking.nightsCount} ночей</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>

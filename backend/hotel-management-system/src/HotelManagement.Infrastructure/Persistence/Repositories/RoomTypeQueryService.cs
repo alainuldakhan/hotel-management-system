@@ -26,7 +26,7 @@ public class RoomTypeQueryService : DapperQueryBase, IRoomTypeQueryService
                         rt.max_occupancy    AS MaxOccupancy,
                         rt.base_price       AS BasePrice,
                         rt.area             AS Area,
-                        COUNT(r.id)         AS RoomsCount,
+                        COUNT(r.id)::int    AS RoomsCount,
                         rt.image_url        AS ImageUrl,
                         rt.is_active        AS IsActive,
                         rt.amenities        AS AmenitiesCsv

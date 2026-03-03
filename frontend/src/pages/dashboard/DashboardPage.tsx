@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { TrendingUp, BedDouble, Users, DollarSign, ArrowRight, CheckCircle, Clock, Wrench, Sparkles } from 'lucide-react';
+import { TrendingUp, BedDouble, Users, DollarSign, ArrowRight, CheckCircle, Clock, Wrench } from 'lucide-react';
 import { analyticsApi } from '../../api/analytics';
 import { frontDeskApi } from '../../api/frontDesk';
 import type { DashboardStatsDto, ArrivalItemDto, DepartureItemDto } from '../../types/api';
@@ -28,10 +28,10 @@ export default function DashboardPage() {
   );
 
   const statCards = [
-    { label: 'Загруженность', value: stats ? `${stats.occupancyRate.toFixed(1)}%` : '—', sub: `${stats?.occupiedRooms ?? 0} из ${stats?.totalRooms ?? 0} номеров`, icon: <TrendingUp size={22} color="#3b82f6" />, iconBg: '#eff6ff' },
+    { label: 'Загруженность', value: stats ? `${(stats.occupancyPercent || 0).toFixed(1)}%` : '—', sub: `${stats?.occupiedRooms ?? 0} из ${stats?.totalRooms ?? 0} номеров`, icon: <TrendingUp size={22} color="#3b82f6" />, iconBg: '#eff6ff' },
     { label: 'Выручка (месяц)', value: stats ? formatCurrency(stats.revenueThisMonth) : '—', sub: `Сегодня: ${formatCurrency(stats?.revenueToday ?? 0)}`, icon: <DollarSign size={22} color="#22c55e" />, iconBg: '#f0fdf4' },
     { label: 'Заезды сегодня', value: stats?.checkInsToday ?? '—', sub: `Выезды: ${stats?.checkOutsToday ?? 0}`, icon: <Users size={22} color="#eab308" />, iconBg: '#fefce8' },
-    { label: 'Свободных номеров', value: stats?.availableRooms ?? '—', sub: `Всего: ${stats?.totalRooms ?? 0}`, icon: <BedDouble size={22} color="#8b5cf6" />, iconBg: '#f5f3ff' },
+    { label: 'Свободных номеров', value: stats ? (stats.totalRooms - stats.occupiedRooms) : '—', sub: `Всего: ${stats?.totalRooms ?? 0}`, icon: <BedDouble size={22} color="#8b5cf6" />, iconBg: '#f5f3ff' },
   ];
 
   return (
@@ -55,23 +55,14 @@ export default function DashboardPage() {
       </div>
 
       {/* Alert row */}
-      {((stats?.pendingMaintenance ?? 0) > 0 || (stats?.pendingHousekeeping ?? 0) > 0) && (
+      {((stats?.pendingMaintenanceRequests ?? 0) > 0) && (
         <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-          {(stats?.pendingMaintenance ?? 0) > 0 && (
+          {(stats?.pendingMaintenanceRequests ?? 0) > 0 && (
             <Link to="/maintenance" style={{ textDecoration: 'none' }}>
               <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Wrench size={16} color="#ef4444" />
-                <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>{stats?.pendingMaintenance} заявок на тех. обслуживание</span>
+                <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>{stats?.pendingMaintenanceRequests} заявок на тех. обслуживание</span>
                 <ArrowRight size={14} color="#ef4444" />
-              </div>
-            </Link>
-          )}
-          {(stats?.pendingHousekeeping ?? 0) > 0 && (
-            <Link to="/housekeeping" style={{ textDecoration: 'none' }}>
-              <div style={{ background: '#fefce8', border: '1px solid #fef08a', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Sparkles size={16} color="#eab308" />
-                <span style={{ fontSize: 13, color: '#a16207', fontWeight: 600 }}>{stats?.pendingHousekeeping} задач по уборке</span>
-                <ArrowRight size={14} color="#eab308" />
               </div>
             </Link>
           )}

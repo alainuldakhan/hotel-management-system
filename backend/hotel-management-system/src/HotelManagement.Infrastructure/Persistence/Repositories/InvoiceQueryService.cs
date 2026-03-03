@@ -1,6 +1,7 @@
 ﻿using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Queries;
 using HotelManagement.Application.DTOs;
+using HotelManagement.Domain.Enums;
 
 namespace HotelManagement.Infrastructure.Persistence.Repositories;
 
@@ -19,7 +20,7 @@ public class InvoiceQueryService : DapperQueryBase, IInvoiceQueryService
                 r.number            AS RoomNumber,
                 u.first_name || ' ' || u.last_name AS GuestFullName,
                 i.amount            AS Amount,
-                i.status::text      AS Status,
+                CASE i.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Paid' WHEN 3 THEN 'PartiallyPaid' WHEN 4 THEN 'Refunded' WHEN 5 THEN 'Failed' ELSE i.status::text END AS Status,
                 i.payment_method    AS PaymentMethod,
                 i.paid_at           AS PaidAt,
                 i.notes             AS Notes,
@@ -45,7 +46,7 @@ public class InvoiceQueryService : DapperQueryBase, IInvoiceQueryService
                 r.number            AS RoomNumber,
                 u.first_name || ' ' || u.last_name AS GuestFullName,
                 i.amount            AS Amount,
-                i.status::text      AS Status,
+                CASE i.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Paid' WHEN 3 THEN 'PartiallyPaid' WHEN 4 THEN 'Refunded' WHEN 5 THEN 'Failed' ELSE i.status::text END AS Status,
                 i.payment_method    AS PaymentMethod,
                 i.paid_at           AS PaidAt,
                 i.notes             AS Notes,
@@ -77,7 +78,7 @@ public class InvoiceQueryService : DapperQueryBase, IInvoiceQueryService
                 DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
                 b.total_amount      AS BaseAmount,
                 i.amount            AS Amount,
-                i.status::text      AS Status,
+                CASE i.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Paid' WHEN 3 THEN 'PartiallyPaid' WHEN 4 THEN 'Refunded' WHEN 5 THEN 'Failed' ELSE i.status::text END AS Status,
                 i.payment_method    AS PaymentMethod,
                 i.paid_at           AS PaidAt,
                 i.notes             AS Notes,
@@ -129,13 +130,13 @@ public class InvoiceQueryService : DapperQueryBase, IInvoiceQueryService
                 u.email             AS GuestEmail,
                 b.check_in_date     AS CheckInDate,
                 b.check_out_date    AS CheckOutDate,
-                b.status::text      AS Status,
+                CASE b.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Confirmed' WHEN 3 THEN 'CheckedIn' WHEN 4 THEN 'CheckedOut' WHEN 5 THEN 'Cancelled' WHEN 6 THEN 'NoShow' ELSE b.status::text END AS Status,
                 b.total_amount      AS TotalAmount
             FROM bookings b
             JOIN rooms r       ON r.id  = b.room_id
             JOIN room_types rt ON rt.id = r.room_type_id
             JOIN users u       ON u.id  = b.guest_id
-            WHERE b.status NOT IN ('Cancelled')
+            WHERE b.status NOT IN (5)
               AND b.check_in_date  <= @Date
               AND b.check_out_date >  @Date
             ORDER BY r.number
@@ -149,7 +150,9 @@ public class InvoiceQueryService : DapperQueryBase, IInvoiceQueryService
     {
         var whereClauses = new List<string>();
         var parameters = new Dapper.DynamicParameters();
-        if (!string.IsNullOrWhiteSpace(filter.Status)) { whereClauses.Add("i.status::text = @Status"); parameters.Add("Status", filter.Status); }
+        if (!string.IsNullOrWhiteSpace(filter.Status) &&
+            Enum.TryParse<PaymentStatus>(filter.Status, out var statusEnum))
+        { whereClauses.Add("i.status = @Status"); parameters.Add("Status", (int)statusEnum); }
         if (filter.From.HasValue) { whereClauses.Add("i.created_at >= @From"); parameters.Add("From", filter.From); }
         if (filter.To.HasValue) { whereClauses.Add("i.created_at <= @To"); parameters.Add("To", filter.To); }
         var where = whereClauses.Count > 0 ? "WHERE " + string.Join(" AND ", whereClauses) : "";
@@ -157,7 +160,7 @@ public class InvoiceQueryService : DapperQueryBase, IInvoiceQueryService
         parameters.Add("Limit", filter.PageSize);
         parameters.Add("Offset", offset);
         var countSql = $"SELECT COUNT(*) FROM invoices i JOIN bookings b ON b.id = i.booking_id JOIN rooms r ON r.id = b.room_id JOIN users u ON u.id = b.guest_id {where}";
-        var dataSql = $"SELECT i.id AS Id, i.invoice_number AS InvoiceNumber, i.booking_id AS BookingId, r.number AS RoomNumber, u.first_name || ' ' || u.last_name AS GuestFullName, i.amount AS Amount, i.status::text AS Status, i.payment_method AS PaymentMethod, i.paid_at AS PaidAt, i.notes AS Notes, i.created_at AS CreatedAt FROM invoices i JOIN bookings b ON b.id = i.booking_id JOIN rooms r ON r.id = b.room_id JOIN users u ON u.id = b.guest_id {where} ORDER BY i.created_at DESC LIMIT @Limit OFFSET @Offset";
+        var dataSql = $"SELECT i.id AS Id, i.invoice_number AS InvoiceNumber, i.booking_id AS BookingId, r.number AS RoomNumber, u.first_name || ' ' || u.last_name AS GuestFullName, i.amount AS Amount, CASE i.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Paid' WHEN 3 THEN 'PartiallyPaid' WHEN 4 THEN 'Refunded' WHEN 5 THEN 'Failed' ELSE i.status::text END AS Status, i.payment_method AS PaymentMethod, i.paid_at AS PaidAt, i.notes AS Notes, i.created_at AS CreatedAt FROM invoices i JOIN bookings b ON b.id = i.booking_id JOIN rooms r ON r.id = b.room_id JOIN users u ON u.id = b.guest_id {where} ORDER BY i.created_at DESC LIMIT @Limit OFFSET @Offset";
         var totalCount = await QuerySingleAsync<int>(countSql, parameters, ct);
         var items = await QueryAsync<InvoiceDto>(dataSql, parameters, ct);
         return new PagedResultDto<InvoiceDto>(items, totalCount, filter.Page, filter.PageSize);

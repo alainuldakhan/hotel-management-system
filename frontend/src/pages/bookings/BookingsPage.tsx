@@ -30,7 +30,7 @@ export default function BookingsPage() {
   const [rooms, setRooms] = useState<RoomDto[]>([]);
   const [guests, setGuests] = useState<UserDto[]>([]);
   const [services, setServices] = useState<AdditionalServiceDto[]>([]);
-  const [form, setForm] = useState({ guestId: '', roomId: '', checkIn: today(), checkOut: addDays(today(), 1), notes: '', serviceIds: [] as string[] });
+  const [form, setForm] = useState({ guestId: '', roomId: '', checkIn: today(), checkOut: addDays(today(), 1), guestsCount: 1, notes: '', serviceIds: [] as string[] });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
@@ -48,14 +48,14 @@ export default function BookingsPage() {
   const openCreate = async () => {
     setCreateError('');
     setCreateOpen(true);
-    const [r, u, s] = await Promise.all([
-      roomsApi.getAll({ status: 'Available', pageSize: 100 }),
+    const [r, u, s] = await Promise.allSettled([
+      roomsApi.getAll(),
       usersApi.getAll({ role: 'Guest', pageSize: 100 }),
       servicesApi.getAll(),
     ]);
-    setRooms(r.data.items ?? []);
-    setGuests(u.data.items ?? []);
-    setServices(s.data ?? []);
+    if (r.status === 'fulfilled') setRooms(r.value.data);
+    if (u.status === 'fulfilled') setGuests(u.value.data.items ?? []);
+    if (s.status === 'fulfilled') setServices(s.value.data ?? []);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -63,9 +63,21 @@ export default function BookingsPage() {
     setCreateError('');
     setCreating(true);
     try {
-      await bookingsApi.create({ guestId: form.guestId, roomId: form.roomId, checkInDate: form.checkIn, checkOutDate: form.checkOut, notes: form.notes || undefined, serviceIds: form.serviceIds });
+      const { data: created } = await bookingsApi.create({
+        guestId: form.guestId,
+        roomId: form.roomId,
+        checkInDate: form.checkIn,
+        checkOutDate: form.checkOut,
+        guestsCount: form.guestsCount,
+        specialRequests: form.notes || undefined,
+      });
+      if (form.serviceIds.length > 0) {
+        await Promise.allSettled(
+          form.serviceIds.map((sid) => bookingsApi.addService((created as unknown as { id: string }).id, sid))
+        );
+      }
       setCreateOpen(false);
-      setForm({ guestId: '', roomId: '', checkIn: today(), checkOut: addDays(today(), 1), notes: '', serviceIds: [] });
+      setForm({ guestId: '', roomId: '', checkIn: today(), checkOut: addDays(today(), 1), guestsCount: 1, notes: '', serviceIds: [] });
       load();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -79,7 +91,7 @@ export default function BookingsPage() {
   const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none', color: '#1e293b', background: '#fff' };
 
   const columns = [
-    { key: 'guestName', header: 'Гость', render: (r: BookingDto) => <span style={{ fontWeight: 600 }}>{r.guestName}</span> },
+    { key: 'guestFullName', header: 'Гость', render: (r: BookingDto) => <span style={{ fontWeight: 600 }}>{r.guestFullName}</span> },
     { key: 'room', header: 'Номер', render: (r: BookingDto) => `№${r.roomNumber} · ${r.roomTypeName}` },
     { key: 'checkInDate', header: 'Заезд', render: (r: BookingDto) => formatDate(r.checkInDate) },
     { key: 'checkOutDate', header: 'Выезд', render: (r: BookingDto) => formatDate(r.checkOutDate) },
@@ -135,7 +147,7 @@ export default function BookingsPage() {
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 5 }}>Номер *</label>
               <select required value={form.roomId} onChange={(e) => setForm((f) => ({ ...f, roomId: e.target.value }))} style={inputStyle}>
                 <option value="">Выберите номер</option>
-                {rooms.map((r) => <option key={r.id} value={r.id}>№{r.number} — {r.roomTypeName} ({formatCurrency(r.roomTypeBasePrice)}/ночь)</option>)}
+                {rooms.map((r) => <option key={r.id} value={r.id}>№{r.number} — {r.roomTypeName} ({formatCurrency((r as unknown as { pricePerNight: number }).pricePerNight ?? r.roomTypeBasePrice)}/ночь)</option>)}
               </select>
             </div>
             <div>
@@ -145,6 +157,10 @@ export default function BookingsPage() {
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 5 }}>Дата выезда *</label>
               <input type="date" required value={form.checkOut} onChange={(e) => setForm((f) => ({ ...f, checkOut: e.target.value }))} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 5 }}>Гостей *</label>
+              <input type="number" required min={1} max={20} value={form.guestsCount} onChange={(e) => setForm((f) => ({ ...f, guestsCount: parseInt(e.target.value) || 1 }))} style={inputStyle} />
             </div>
           </div>
 

@@ -1,9 +1,8 @@
 import client from './client';
-import type { RoomDto, PagedResult, RoomBlockDto } from '../types/api';
+import type { RoomDto, RoomBlockDto } from '../types/api';
 
 export const roomsApi = {
-  getAll: (params?: { page?: number; pageSize?: number; status?: string; roomTypeId?: string; floor?: number }) =>
-    client.get<PagedResult<RoomDto>>('/rooms', { params }),
+  getAll: () => client.get<RoomDto[]>('/rooms'),
   getById: (id: string) => client.get<RoomDto>(`/rooms/${id}`),
   create: (data: { number: string; floor: number; roomTypeId: string; description?: string }) =>
     client.post<RoomDto>('/rooms', data),

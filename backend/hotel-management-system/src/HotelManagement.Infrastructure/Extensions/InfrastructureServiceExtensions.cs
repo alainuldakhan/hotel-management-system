@@ -33,10 +33,11 @@ public static class InfrastructureServiceExtensions
 
         // ── EF Core (Commands / Write) ──────────────────────────────────────
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
-            options.UseNpgsql(
-                connectionString,
-                npgsql => npgsql.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)
-            ));
+            options
+                .UseNpgsql(connectionString,
+                    npgsql => npgsql.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName))
+                .ConfigureWarnings(w =>
+                    w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
 

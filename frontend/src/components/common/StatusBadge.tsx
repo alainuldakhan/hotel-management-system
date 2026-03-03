@@ -9,6 +9,7 @@ const CONFIG: Record<string, { bg: string; color: string; label: string }> = {
   CheckedIn:     { bg: '#eff6ff', color: '#1d4ed8', label: 'Заселён' },
   CheckedOut:    { bg: '#f8fafc', color: '#475569', label: 'Выехал' },
   Cancelled:     { bg: '#fef2f2', color: '#dc2626', label: 'Отменено' },
+  NoShow:        { bg: '#f8fafc', color: '#94a3b8', label: 'Не явился' },
   // Room
   Available:     { bg: '#f0fdf4', color: '#166534', label: 'Свободен' },
   Occupied:      { bg: '#eff6ff', color: '#1d4ed8', label: 'Занят' },
@@ -18,19 +19,23 @@ const CONFIG: Record<string, { bg: string; color: string; label: string }> = {
   // Payment
   PartiallyPaid: { bg: '#fff7ed', color: '#c2410c', label: 'Частично оплачен' },
   Paid:          { bg: '#f0fdf4', color: '#166534', label: 'Оплачен' },
+  Refunded:      { bg: '#f8fafc', color: '#64748b', label: 'Возврат' },
+  Failed:        { bg: '#fef2f2', color: '#dc2626', label: 'Ошибка' },
   // Maintenance status
-  Open:          { bg: '#fef2f2', color: '#dc2626', label: 'Открыто' },
+  New:           { bg: '#fef2f2', color: '#dc2626', label: 'Новая' },
   InProgress:    { bg: '#eff6ff', color: '#1d4ed8', label: 'В работе' },
-  OnHold:        { bg: '#fefce8', color: '#a16207', label: 'На паузе' },
-  Resolved:      { bg: '#f0fdf4', color: '#166534', label: 'Решено' },
-  Closed:        { bg: '#f8fafc', color: '#475569', label: 'Закрыто' },
+  Completed:     { bg: '#f0fdf4', color: '#166534', label: 'Выполнено' },
   // Priority
   Low:           { bg: '#f8fafc', color: '#475569', label: 'Низкий' },
   Medium:        { bg: '#fefce8', color: '#a16207', label: 'Средний' },
   High:          { bg: '#fff7ed', color: '#c2410c', label: 'Высокий' },
-  Urgent:        { bg: '#fef2f2', color: '#dc2626', label: 'Срочный' },
-  // Housekeeping
-  Completed:     { bg: '#f0fdf4', color: '#166534', label: 'Выполнено' },
+  Critical:      { bg: '#fef2f2', color: '#dc2626', label: 'Критический' },
+  // Housekeeping task types
+  General:       { bg: '#f8fafc', color: '#475569', label: 'Уборка' },
+  Checkout:      { bg: '#fff7ed', color: '#c2410c', label: 'После выезда' },
+  Turndown:      { bg: '#fefce8', color: '#a16207', label: 'Вечерняя' },
+  DeepCleaning:  { bg: '#eff6ff', color: '#1d4ed8', label: 'Генеральная' },
+  Replenishment: { bg: '#f0fdf4', color: '#166534', label: 'Пополнение' },
 };
 
 interface Props {

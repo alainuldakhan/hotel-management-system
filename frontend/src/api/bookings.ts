@@ -7,8 +7,8 @@ export const bookingsApi = {
   getById: (id: string) => client.get<BookingDto>(`/bookings/${id}`),
   create: (data: {
     guestId: string; roomId: string; checkInDate: string; checkOutDate: string;
-    notes?: string; serviceIds?: string[];
-  }) => client.post<BookingDto>('/bookings', data),
+    guestsCount: number; specialRequests?: string;
+  }) => client.post('/bookings', data),
   update: (id: string, data: { notes?: string; serviceIds?: string[] }) =>
     client.put(`/bookings/${id}`, data),
   cancel: (id: string, reason?: string) =>

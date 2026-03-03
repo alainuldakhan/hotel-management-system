@@ -2,6 +2,7 @@ using Dapper;
 using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Queries;
 using HotelManagement.Application.DTOs;
+using HotelManagement.Domain.Enums;
 
 namespace HotelManagement.Infrastructure.Persistence.Repositories;
 
@@ -25,8 +26,8 @@ public class MaintenanceQueryService : DapperQueryBase, IMaintenanceQueryService
             SELECT
                 mr.id                       AS Id,
                 mr.title                    AS Title,
-                mr.status::text             AS Status,
-                mr.priority::text           AS Priority,
+                CASE mr.status WHEN 1 THEN 'New' WHEN 2 THEN 'InProgress' WHEN 3 THEN 'Completed' WHEN 4 THEN 'Cancelled' ELSE mr.status::text END AS Status,
+                CASE mr.priority WHEN 1 THEN 'Low' WHEN 2 THEN 'Medium' WHEN 3 THEN 'High' WHEN 4 THEN 'Critical' ELSE mr.priority::text END AS Priority,
                 r.number                    AS RoomNumber,
                 rep.first_name || ' ' || rep.last_name AS ReportedBy,
                 asgn.first_name || ' ' || asgn.last_name AS AssignedTo,
@@ -53,8 +54,8 @@ public class MaintenanceQueryService : DapperQueryBase, IMaintenanceQueryService
                 mr.id                       AS Id,
                 mr.title                    AS Title,
                 mr.description              AS Description,
-                mr.status::text             AS Status,
-                mr.priority::text           AS Priority,
+                CASE mr.status WHEN 1 THEN 'New' WHEN 2 THEN 'InProgress' WHEN 3 THEN 'Completed' WHEN 4 THEN 'Cancelled' ELSE mr.status::text END AS Status,
+                CASE mr.priority WHEN 1 THEN 'Low' WHEN 2 THEN 'Medium' WHEN 3 THEN 'High' WHEN 4 THEN 'Critical' ELSE mr.priority::text END AS Priority,
                 mr.resolution               AS Resolution,
                 mr.resolved_at              AS ResolvedAt,
                 mr.room_id                  AS RoomId,
@@ -79,15 +80,17 @@ public class MaintenanceQueryService : DapperQueryBase, IMaintenanceQueryService
     {
         var conditions = new List<string>();
 
-        if (!string.IsNullOrEmpty(filter.Status))
+        if (!string.IsNullOrEmpty(filter.Status) &&
+            Enum.TryParse<MaintenanceStatus>(filter.Status, out var statusEnum))
         {
-            conditions.Add("mr.status::text = @Status");
-            parameters.Add("Status", filter.Status);
+            conditions.Add("mr.status = @Status");
+            parameters.Add("Status", (int)statusEnum);
         }
-        if (!string.IsNullOrEmpty(filter.Priority))
+        if (!string.IsNullOrEmpty(filter.Priority) &&
+            Enum.TryParse<MaintenancePriority>(filter.Priority, out var priorityEnum))
         {
-            conditions.Add("mr.priority::text = @Priority");
-            parameters.Add("Priority", filter.Priority);
+            conditions.Add("mr.priority = @Priority");
+            parameters.Add("Priority", (int)priorityEnum);
         }
         if (filter.RoomId.HasValue)
         {

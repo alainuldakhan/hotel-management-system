@@ -2,6 +2,7 @@ using Dapper;
 using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Queries;
 using HotelManagement.Application.DTOs;
+using HotelManagement.Domain.Enums;
 
 namespace HotelManagement.Infrastructure.Persistence.Repositories;
 
@@ -24,8 +25,8 @@ public class HousekeepingQueryService : DapperQueryBase, IHousekeepingQueryServi
         var dataSql = $"""
             SELECT
                 ht.id                           AS Id,
-                ht.type::text                   AS Type,
-                ht.status::text                 AS Status,
+                CASE ht.type WHEN 1 THEN 'General' WHEN 2 THEN 'Checkout' WHEN 3 THEN 'Turndown' WHEN 4 THEN 'DeepCleaning' WHEN 5 THEN 'Replenishment' ELSE ht.type::text END AS Type,
+                CASE ht.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'InProgress' WHEN 3 THEN 'Completed' WHEN 4 THEN 'Cancelled' ELSE ht.status::text END AS Status,
                 r.number                        AS RoomNumber,
                 r.floor                         AS Floor,
                 req.first_name || ' ' || req.last_name  AS RequestedBy,
@@ -55,8 +56,8 @@ public class HousekeepingQueryService : DapperQueryBase, IHousekeepingQueryServi
         var sql = """
             SELECT
                 ht.id                           AS Id,
-                ht.type::text                   AS Type,
-                ht.status::text                 AS Status,
+                CASE ht.type WHEN 1 THEN 'General' WHEN 2 THEN 'Checkout' WHEN 3 THEN 'Turndown' WHEN 4 THEN 'DeepCleaning' WHEN 5 THEN 'Replenishment' ELSE ht.type::text END AS Type,
+                CASE ht.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'InProgress' WHEN 3 THEN 'Completed' WHEN 4 THEN 'Cancelled' ELSE ht.status::text END AS Status,
                 ht.notes                        AS Notes,
                 ht.completion_notes             AS CompletionNotes,
                 ht.due_date                     AS DueDate,
@@ -84,15 +85,17 @@ public class HousekeepingQueryService : DapperQueryBase, IHousekeepingQueryServi
     {
         var conditions = new List<string>();
 
-        if (!string.IsNullOrEmpty(filter.Status))
+        if (!string.IsNullOrEmpty(filter.Status) &&
+            Enum.TryParse<HousekeepingStatus>(filter.Status, out var statusEnum))
         {
-            conditions.Add("ht.status::text = @Status");
-            parameters.Add("Status", filter.Status);
+            conditions.Add("ht.status = @Status");
+            parameters.Add("Status", (int)statusEnum);
         }
-        if (!string.IsNullOrEmpty(filter.Type))
+        if (!string.IsNullOrEmpty(filter.Type) &&
+            Enum.TryParse<HousekeepingTaskType>(filter.Type, out var typeEnum))
         {
-            conditions.Add("ht.type::text = @Type");
-            parameters.Add("Type", filter.Type);
+            conditions.Add("ht.type = @Type");
+            parameters.Add("Type", (int)typeEnum);
         }
         if (filter.RoomId.HasValue)
         {

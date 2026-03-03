@@ -53,7 +53,7 @@ namespace HotelManagement.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AdditionalServices");
+                    b.ToTable("additional_services");
                 });
 
             modelBuilder.Entity("HotelManagement.Domain.Entities.AuditLog", b =>
@@ -717,7 +717,6 @@ namespace HotelManagement.Infrastructure.Persistence.Migrations
                         .HasColumnName("created_at");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("description");

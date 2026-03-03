@@ -84,7 +84,6 @@ export default function Sidebar() {
           <img src={iconUrl} alt="Roomy" style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'contain' }} />
           <div>
             <div style={{ color: '#fff', fontWeight: 800, fontSize: 16, lineHeight: 1 }}>Roomy</div>
-            <div style={{ color: '#64748b', fontSize: 11, marginTop: 2 }}>Hotel PMS</div>
           </div>
         </div>
       </div>

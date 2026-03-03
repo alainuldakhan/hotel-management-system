@@ -4,6 +4,7 @@ export enum BookingStatus {
   CheckedIn = 'CheckedIn',
   CheckedOut = 'CheckedOut',
   Cancelled = 'Cancelled',
+  NoShow = 'NoShow',
 }
 
 export enum RoomStatus {
@@ -16,23 +17,24 @@ export enum RoomStatus {
 
 export enum PaymentStatus {
   Pending = 'Pending',
-  PartiallyPaid = 'PartiallyPaid',
   Paid = 'Paid',
+  PartiallyPaid = 'PartiallyPaid',
+  Refunded = 'Refunded',
+  Failed = 'Failed',
 }
 
 export enum MaintenanceStatus {
-  Open = 'Open',
+  New = 'New',
   InProgress = 'InProgress',
-  OnHold = 'OnHold',
-  Resolved = 'Resolved',
-  Closed = 'Closed',
+  Completed = 'Completed',
+  Cancelled = 'Cancelled',
 }
 
 export enum MaintenancePriority {
   Low = 'Low',
   Medium = 'Medium',
   High = 'High',
-  Urgent = 'Urgent',
+  Critical = 'Critical',
 }
 
 export enum HousekeepingStatus {
@@ -43,11 +45,11 @@ export enum HousekeepingStatus {
 }
 
 export enum HousekeepingTaskType {
-  Cleaning = 'Cleaning',
-  LaundryChange = 'LaundryChange',
-  Maintenance = 'Maintenance',
-  Inspection = 'Inspection',
+  General = 'General',
+  Checkout = 'Checkout',
   Turndown = 'Turndown',
+  DeepCleaning = 'DeepCleaning',
+  Replenishment = 'Replenishment',
 }
 
 export enum UserRole {

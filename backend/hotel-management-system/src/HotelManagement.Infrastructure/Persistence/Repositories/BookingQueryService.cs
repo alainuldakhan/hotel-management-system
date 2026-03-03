@@ -2,6 +2,7 @@
 using HotelManagement.Application.Common.Interfaces;
 using HotelManagement.Application.Common.Interfaces.Queries;
 using HotelManagement.Application.DTOs;
+using HotelManagement.Domain.Enums;
 
 namespace HotelManagement.Infrastructure.Persistence.Repositories;
 
@@ -30,8 +31,8 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
                 b.check_out_date                                    AS CheckOutDate,
                 DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
                 b.guests_count                                      AS GuestsCount,
-                b.status::text                                      AS Status,
-                b.payment_status::text                              AS PaymentStatus,
+                CASE b.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Confirmed' WHEN 3 THEN 'CheckedIn' WHEN 4 THEN 'CheckedOut' WHEN 5 THEN 'Cancelled' WHEN 6 THEN 'NoShow' ELSE b.status::text END AS Status,
+                CASE b.payment_status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Paid' WHEN 3 THEN 'PartiallyPaid' WHEN 4 THEN 'Refunded' WHEN 5 THEN 'Failed' ELSE b.payment_status::text END AS PaymentStatus,
                 b.total_amount                                      AS TotalAmount,
                 b.created_at                                        AS CreatedAt
             FROM bookings b
@@ -51,15 +52,17 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
         var whereClauses = new List<string>();
         var parameters = new DynamicParameters();
 
-        if (!string.IsNullOrWhiteSpace(filter.Status))
+        if (!string.IsNullOrWhiteSpace(filter.Status) &&
+            Enum.TryParse<BookingStatus>(filter.Status, out var statusEnum))
         {
-            whereClauses.Add("b.status::text = @Status");
-            parameters.Add("Status", filter.Status);
+            whereClauses.Add("b.status = @Status");
+            parameters.Add("Status", (int)statusEnum);
         }
-        if (!string.IsNullOrWhiteSpace(filter.PaymentStatus))
+        if (!string.IsNullOrWhiteSpace(filter.PaymentStatus) &&
+            Enum.TryParse<PaymentStatus>(filter.PaymentStatus, out var paymentEnum))
         {
-            whereClauses.Add("b.payment_status::text = @PaymentStatus");
-            parameters.Add("PaymentStatus", filter.PaymentStatus);
+            whereClauses.Add("b.payment_status = @PaymentStatus");
+            parameters.Add("PaymentStatus", (int)paymentEnum);
         }
         if (filter.CheckInFrom.HasValue)
         {
@@ -110,8 +113,8 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
                 b.check_out_date                                    AS CheckOutDate,
                 DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
                 b.guests_count                                      AS GuestsCount,
-                b.status::text                                      AS Status,
-                b.payment_status::text                              AS PaymentStatus,
+                CASE b.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Confirmed' WHEN 3 THEN 'CheckedIn' WHEN 4 THEN 'CheckedOut' WHEN 5 THEN 'Cancelled' WHEN 6 THEN 'NoShow' ELSE b.status::text END AS Status,
+                CASE b.payment_status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Paid' WHEN 3 THEN 'PartiallyPaid' WHEN 4 THEN 'Refunded' WHEN 5 THEN 'Failed' ELSE b.payment_status::text END AS PaymentStatus,
                 b.total_amount                                      AS TotalAmount,
                 b.created_at                                        AS CreatedAt
             FROM bookings b
@@ -148,8 +151,8 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
                 b.check_out_date                                    AS CheckOutDate,
                 DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
                 b.guests_count                                      AS GuestsCount,
-                b.status::text                                      AS Status,
-                b.payment_status::text                              AS PaymentStatus,
+                CASE b.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Confirmed' WHEN 3 THEN 'CheckedIn' WHEN 4 THEN 'CheckedOut' WHEN 5 THEN 'Cancelled' WHEN 6 THEN 'NoShow' ELSE b.status::text END AS Status,
+                CASE b.payment_status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Paid' WHEN 3 THEN 'PartiallyPaid' WHEN 4 THEN 'Refunded' WHEN 5 THEN 'Failed' ELSE b.payment_status::text END AS PaymentStatus,
                 b.total_amount                                      AS TotalAmount,
                 b.paid_amount                                       AS PaidAmount,
                 b.qr_code_token                                     AS QrCodeToken,
@@ -203,7 +206,7 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
                 r.number        AS RoomNumber,
                 r.floor         AS Floor,
                 rt.name         AS RoomTypeName,
-                r.status::text  AS RoomStatus
+                CASE r.status WHEN 1 THEN 'Available' WHEN 2 THEN 'Occupied' WHEN 3 THEN 'Cleaning' WHEN 4 THEN 'Maintenance' WHEN 5 THEN 'OutOfService' ELSE r.status::text END AS RoomStatus
             FROM rooms r
             JOIN room_types rt ON rt.id = r.room_type_id
             WHERE r.is_active = true
@@ -219,10 +222,10 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
                 b.check_in_date                                     AS CheckInDate,
                 b.check_out_date                                    AS CheckOutDate,
                 DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
-                b.status::text                                      AS Status
+                CASE b.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Confirmed' WHEN 3 THEN 'CheckedIn' WHEN 4 THEN 'CheckedOut' WHEN 5 THEN 'Cancelled' WHEN 6 THEN 'NoShow' ELSE b.status::text END AS Status
             FROM bookings b
             JOIN users u ON u.id = b.guest_id
-            WHERE b.status NOT IN ('Cancelled')
+            WHERE b.status NOT IN (5)
               AND b.check_in_date  < @EndDate
               AND b.check_out_date > @StartDate
             ORDER BY b.check_in_date
@@ -263,8 +266,8 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
                 b.check_out_date                                    AS CheckOutDate,
                 DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
                 b.guests_count                                      AS GuestsCount,
-                b.status::text                                      AS Status,
-                b.payment_status::text                              AS PaymentStatus,
+                CASE b.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Confirmed' WHEN 3 THEN 'CheckedIn' WHEN 4 THEN 'CheckedOut' WHEN 5 THEN 'Cancelled' WHEN 6 THEN 'NoShow' ELSE b.status::text END AS Status,
+                CASE b.payment_status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Paid' WHEN 3 THEN 'PartiallyPaid' WHEN 4 THEN 'Refunded' WHEN 5 THEN 'Failed' ELSE b.payment_status::text END AS PaymentStatus,
                 b.total_amount                                      AS TotalAmount,
                 b.created_at                                        AS CreatedAt
             FROM bookings b
@@ -272,7 +275,7 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
             JOIN room_types rt  ON rt.id = r.room_type_id
             JOIN users u        ON u.id  = b.guest_id
             WHERE b.check_in_date::date = @Tomorrow
-              AND b.status = 'Confirmed'
+              AND b.status = 2
             ORDER BY b.check_in_date
             """;
 
@@ -287,7 +290,7 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
         var sql = """
             SELECT
                 b.id                                                AS BookingId,
-                u.first_name || '' '' || u.last_name               AS GuestFullName,
+                u.first_name || ' ' || u.last_name                 AS GuestFullName,
                 u.email                                             AS GuestEmail,
                 u.phone_number                                      AS GuestPhone,
                 r.number                                            AS RoomNumber,
@@ -297,7 +300,7 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
                 DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
                 b.guests_count                                      AS GuestsCount,
                 b.total_amount                                      AS TotalAmount,
-                b.status::text                                      AS Status,
+                CASE b.status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Confirmed' WHEN 3 THEN 'CheckedIn' WHEN 4 THEN 'CheckedOut' WHEN 5 THEN 'Cancelled' WHEN 6 THEN 'NoShow' ELSE b.status::text END AS Status,
                 b.special_requests                                  AS SpecialRequests
             FROM bookings b
             JOIN rooms r       ON r.id  = b.room_id
@@ -316,7 +319,7 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
         var sql = """
             SELECT
                 b.id                                                AS BookingId,
-                u.first_name || '' '' || u.last_name               AS GuestFullName,
+                u.first_name || ' ' || u.last_name                 AS GuestFullName,
                 u.email                                             AS GuestEmail,
                 r.number                                            AS RoomNumber,
                 rt.name                                             AS RoomTypeName,
@@ -325,7 +328,7 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
                 DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
                 b.total_amount                                      AS TotalAmount,
                 b.paid_amount                                       AS PaidAmount,
-                b.payment_status::text                              AS PaymentStatus
+                CASE b.payment_status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Paid' WHEN 3 THEN 'PartiallyPaid' WHEN 4 THEN 'Refunded' WHEN 5 THEN 'Failed' ELSE b.payment_status::text END AS PaymentStatus
             FROM bookings b
             JOIN rooms r       ON r.id  = b.room_id
             JOIN room_types rt ON rt.id = r.room_type_id
@@ -342,7 +345,7 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
         var sql = """
             SELECT
                 b.id                                                AS BookingId,
-                u.first_name || '' '' || u.last_name               AS GuestFullName,
+                u.first_name || ' ' || u.last_name                 AS GuestFullName,
                 u.email                                             AS GuestEmail,
                 u.phone_number                                      AS GuestPhone,
                 r.number                                            AS RoomNumber,
@@ -352,7 +355,7 @@ public class BookingQueryService : DapperQueryBase, IBookingQueryService
                 DATE_PART('day', b.check_out_date - b.check_in_date)::int AS NightsCount,
                 b.actual_check_in                                   AS ActualCheckIn,
                 b.total_amount                                      AS TotalAmount,
-                b.payment_status::text                              AS PaymentStatus
+                CASE b.payment_status WHEN 1 THEN 'Pending' WHEN 2 THEN 'Paid' WHEN 3 THEN 'PartiallyPaid' WHEN 4 THEN 'Refunded' WHEN 5 THEN 'Failed' ELSE b.payment_status::text END AS PaymentStatus
             FROM bookings b
             JOIN rooms r       ON r.id  = b.room_id
             JOIN room_types rt ON rt.id = r.room_type_id

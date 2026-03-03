@@ -25,9 +25,9 @@ public class AnalyticsQueryService : DapperQueryBase, IAnalyticsQueryService
     {
         var sql = """
             SELECT
-                (SELECT COUNT(*) FROM rooms WHERE is_active = true)
+                (SELECT COUNT(*)::int FROM rooms WHERE is_active = true)
                     AS TotalRooms,
-                (SELECT COUNT(*) FROM rooms WHERE is_active = true AND status = 2)
+                (SELECT COUNT(*)::int FROM rooms WHERE is_active = true AND status = 2)
                     AS OccupiedRooms,
                 ROUND(
                     (SELECT COUNT(*) FROM rooms WHERE is_active = true AND status = 2) * 100.0
@@ -40,15 +40,15 @@ public class AnalyticsQueryService : DapperQueryBase, IAnalyticsQueryService
                  WHERE DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)
                    AND status NOT IN (5))
                     AS RevenueThisMonth,
-                (SELECT COUNT(*) FROM bookings WHERE DATE(created_at) = CURRENT_DATE)
+                (SELECT COUNT(*)::int FROM bookings WHERE DATE(created_at) = CURRENT_DATE)
                     AS BookingsToday,
-                (SELECT COUNT(*) FROM bookings WHERE DATE(check_in_date) = CURRENT_DATE AND status = 3)
+                (SELECT COUNT(*)::int FROM bookings WHERE DATE(check_in_date) = CURRENT_DATE AND status = 3)
                     AS CheckInsToday,
-                (SELECT COUNT(*) FROM bookings WHERE DATE(check_out_date) = CURRENT_DATE AND status = 4)
+                (SELECT COUNT(*)::int FROM bookings WHERE DATE(check_out_date) = CURRENT_DATE AND status = 4)
                     AS CheckOutsToday,
-                (SELECT COUNT(*) FROM maintenance_requests WHERE status IN (1, 2))
+                (SELECT COUNT(*)::int FROM maintenance_requests WHERE status IN (1, 2))
                     AS PendingMaintenanceRequests,
-                (SELECT COUNT(*) FROM bookings WHERE status IN (2, 3))
+                (SELECT COUNT(*)::int FROM bookings WHERE status IN (2, 3))
                     AS ActiveBookings
             """;
 
@@ -70,7 +70,7 @@ public class AnalyticsQueryService : DapperQueryBase, IAnalyticsQueryService
             SELECT
                 TO_CHAR(DATE_TRUNC('{truncation}', b.created_at), 'YYYY-MM-DD') AS Period,
                 COALESCE(SUM(b.total_amount), 0)                                 AS Revenue,
-                COUNT(b.id)                                                      AS BookingsCount,
+                COUNT(b.id)::int                                                  AS BookingsCount,
                 COALESCE(AVG(b.total_amount), 0)                                 AS AverageBookingValue
             FROM bookings b
             WHERE b.created_at BETWEEN @From AND @To
@@ -88,7 +88,7 @@ public class AnalyticsQueryService : DapperQueryBase, IAnalyticsQueryService
         var sql = """
             SELECT
                 rt.name                                                          AS RoomTypeName,
-                COUNT(DISTINCT r.id)                                             AS TotalRooms,
+                COUNT(DISTINCT r.id)::int                                        AS TotalRooms,
                 ROUND(
                     COUNT(DISTINCT b.id) * 100.0
                     / NULLIF(COUNT(DISTINCT r.id) * DATE_PART('day', @To - @From), 0), 2
@@ -119,7 +119,7 @@ public class AnalyticsQueryService : DapperQueryBase, IAnalyticsQueryService
                 u.id                                                AS GuestId,
                 u.first_name || ' ' || u.last_name                 AS FullName,
                 u.email                                             AS Email,
-                COUNT(b.id)                                         AS TotalBookings,
+                COUNT(b.id)::int                                     AS TotalBookings,
                 COALESCE(SUM(
                     DATE_PART('day', b.check_out_date - b.check_in_date)
                 )::int, 0)                                          AS TotalNights,
@@ -206,11 +206,11 @@ public class AnalyticsQueryService : DapperQueryBase, IAnalyticsQueryService
                     ad.total_room_nights * 100.0
                     / NULLIF(rc.total * DATE_PART('day', @To::date - @From::date), 0), 2
                 )                                               AS OccupancyPercent,
-                ad.total_room_nights                            AS TotalRoomNightsSold,
+                ad.total_room_nights::int                       AS TotalRoomNightsSold,
                 ad.total_revenue                                AS TotalRevenue,
-                f.books_30                                      AS RoomsOnBooks30Days,
-                f.books_60                                      AS RoomsOnBooks60Days,
-                f.books_90                                      AS RoomsOnBooks90Days
+                f.books_30::int                                 AS RoomsOnBooks30Days,
+                f.books_60::int                                 AS RoomsOnBooks60Days,
+                f.books_90::int                                 AS RoomsOnBooks90Days
             FROM adr_data ad
             CROSS JOIN room_counts rc
             CROSS JOIN forecast f

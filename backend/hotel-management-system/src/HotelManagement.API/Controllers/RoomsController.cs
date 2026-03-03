@@ -63,8 +63,10 @@ public class RoomsController : ControllerBase
     /// <summary>Change room status [Receptionist, HousekeepingStaff, Manager, SuperAdmin]</summary>
     [HttpPatch("{id:guid}/status")]
     [Authorize(Roles = "Receptionist,HousekeepingStaff,Manager,SuperAdmin")]
-    public async Task<IActionResult> ChangeStatus(Guid id, [FromBody] RoomStatus status, CancellationToken ct)
+    public async Task<IActionResult> ChangeStatus(Guid id, [FromBody] ChangeStatusRequest body, CancellationToken ct)
     {
+        if (!Enum.TryParse<RoomStatus>(body.Status, out var status))
+            return BadRequest(new { message = "Неверный статус" });
         await _mediator.Send(new ChangeRoomStatusCommand(id, status), ct);
         return NoContent();
     }
@@ -90,7 +92,7 @@ public class RoomsController : ControllerBase
     public async Task<IActionResult> Block(Guid id, [FromBody] BlockRoomRequest body, CancellationToken ct)
     {
         var userId = Guid.Parse(User.FindFirstValue("sub") ?? Guid.Empty.ToString());
-        var blockId = await _mediator.Send(new BlockRoomCommand(id, body.From, body.To, body.Reason, userId), ct);
+        var blockId = await _mediator.Send(new BlockRoomCommand(id, body.BlockedFrom, body.BlockedTo, body.Reason, userId), ct);
         return Ok(new { id = blockId });
     }
 
@@ -104,4 +106,5 @@ public class RoomsController : ControllerBase
     }
 }
 
-public record BlockRoomRequest(DateTime From, DateTime To, string Reason);
+public record BlockRoomRequest(DateTime BlockedFrom, DateTime BlockedTo, string Reason);
+public record ChangeStatusRequest(string Status);
